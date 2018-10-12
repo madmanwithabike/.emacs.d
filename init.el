@@ -2737,9 +2737,9 @@ fields which we need."
   :load-path "/usr/share/emacs/site-lisp/clang-format-5.0"
   :pin manual)
 
-;; (use-package google-c-style
-;;   :defer t
-;;   :ensure t)
+(use-package google-c-style
+  :defer t
+  :ensure t)
 
 (use-package rh-c-style
   :commands rh-c-style-setup
