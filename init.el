@@ -17,7 +17,7 @@
  '(longlines-show-hard-newlines t)
  '(make-backup-files nil)
  '(package-selected-packages
-   '(amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line indium iflipb flycheck-typescript-tslint yasnippet-snippets tern typescript-mode flycheck company-tern company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
+   '(bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
  '(pop-up-windows nil)
  '(preview-scale-function 1.8)
  '(safe-local-variable-values '((eval progn (linum-mode -1) (nlinum-mode 1))))
@@ -36,6 +36,8 @@
  '(completion-dynamic-common-substring-face ((((class color) (background light)) (:background "light steel blue" :foreground "systemmenutext"))))
  '(completion-dynamic-prefix-alterations-face ((((class color) (background light)) (:background "cyan" :foreground "systemmenutext"))))
  '(completion-highlight-face ((((class color) (background light)) (:background "light sky blue" :underline t))))
+ '(iedit-occurrence ((((background light)) (:background "lightblue"))))
+ '(iedit-read-only-occurrence ((((background light)) (:background "pale turquoise"))))
  '(rtags-errline ((((class color)) (:background "#ef8990"))))
  '(rtags-fixitline ((((class color)) (:background "#ecc5a8"))))
  '(rtags-skippedline ((((class color)) (:background "#c2fada"))))
@@ -107,16 +109,18 @@
        (when (file-exists-p ver-file-path)
          (add-to-list 'vr-site-start-file-paths ver-file-path)))))))
 
-;; (setq vr-smex-save-file
-;;       (concat user-emacs-directory "smex-items"))
 (setq vr-user-lisp-directory-path
-      (concat user-emacs-directory "lisp/"))
+      (concat (expand-file-name user-emacs-directory) "lisp/"))
 (setq vr-user-site-start-file-path
       (concat vr-user-lisp-directory-path "site-start.el"))
 
 ;; ------------------------------------------------------------------
 ;;; Helper functions and common modules
 ;; ------------------------------------------------------------------
+
+;; TODO: investigate the following packages
+;;       see https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
+;;       https://github.com/bmag/emacs-purpose
 
 ;; see https://www.quicklisp.org/beta/ for lisp libraries
 ;; Can then do magic like this:
@@ -193,7 +197,7 @@
 (defun rh-window-selected-interactively-p ()
   (eq (selected-window) rh-interactively-selected-window))
 
-(defun vr-point-or-region ()
+(defun rh-point-or-region ()
   (if (use-region-p)
       (list (region-beginning) (region-end))
     (list (point) (point))))
@@ -217,25 +221,6 @@
             (display-buffer buffer-name)))
       (message (concat "\"" buffer-name "\""
                        " buffer does not exist.")))))
-
-;; == Outline ellipsis (for org mode, hideshow mode) ==
-
-;; see http://emacs.stackexchange.com/questions/10981/changing-the-appearance-of-org-mode-hidden-contents-ellipsis
-;; see http://emacswiki.org/emacs/OutlineMode
-
-;; (set-display-table-slot standard-display-table
-;;                         'selective-display (string-to-vector " ◦◦◦ "))
-
-(set-display-table-slot
- standard-display-table
- 'selective-display
- (let ((face-offset (* (face-id 'shadow) (lsh 1 22))))
-   (vconcat (mapcar (lambda (c) (+ face-offset c))
-                    ;; " […] "
-                    ;; " ◦◦◦ "
-                    ;; " [•••] "
-                    " [...] "
-                    ))))
 
 ;; == Convenience interactive functions ==
 
@@ -309,9 +294,11 @@ when only symbol face names are needed."
 (defvar rh-project-include-path-suffix "-include-path")
 
 (defun rh-project-get-path ()
-  (let ((src-tree-root (locate-dominating-file
-                        (file-truename default-directory)
-                        rh-project-dir-name)))
+  (let ((src-tree-root (and buffer-file-name
+                            (locate-dominating-file
+                             ;; (file-truename default-directory)
+                             (file-name-directory buffer-file-name)
+                             rh-project-dir-name))))
     (when src-tree-root
       (file-name-as-directory (concat src-tree-root rh-project-dir-name)))))
 
@@ -334,6 +321,7 @@ when only symbol face names are needed."
                                       (init-file-name "init"))
   (let ((rh-project-path (rh-project-get-path)))
     (when rh-project-path
+      (message (concat "rh-project: " rh-project-path))
       (let ((setup-file-path (concat rh-project-path setup-file-name ".el"))
             (init-file-path (concat rh-project-path init-file-name ".el"))
             (rh-project-id (directory-file-name
@@ -397,16 +385,16 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
   (concat "^.*" close-token ".*$"))
 
 (defun cg-looking-at-group-head (open-token)
-  (if (string-match-p
-       (concat "^.*" open-token ".*$")
-       (thing-at-point 'line t))
-      open-token))
+  (let ((line (thing-at-point 'line t)))
+    (when (and line
+               (string-match-p (concat "^.*" open-token ".*$") line))
+      open-token)))
 
 (defun cg-looking-at-group-tail (close-token)
-  (if (string-match-p
-       (concat "^.*" close-token ".*$")
-       (thing-at-point 'line t))
-      close-token))
+  (let ((line (thing-at-point 'line t)))
+    (when (and line
+               (string-match-p (concat "^.*" close-token ".*$") line))
+      close-token)))
 
 (defun cg-group-head-or-tail-length (token line)
   (length
@@ -668,29 +656,67 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
 
 (defvar g2w-fallback-display-buffer-func
   ;; 'display-buffer-reuse-window)
-  'display-buffer-same-window)
+  'display-buffer-pop-up-window)
 
-(defvar g2w-display-buffer-commands
+(defvar g2w-display-buffer-reuse-window-commands
   '())
+
+;; (defvar g2w-display-buffer-same-window-commands
+;;   '())
+
+;; (defun g2w-reuse-same-window-p (buffer-nm actions)
+;;   (with-current-buffer buffer-nm
+;;     (and (not (string= buffer-nm "*RTags*"))
+;;          (not (boundp 'g2w-destination-window))
+;;          (memq this-command
+;;                g2w-display-buffer-same-window-commands))))
+
+(defun g2w-reuse-command-window-p (buffer-nm actions)
+  (and (boundp 'g2w-destination-window)
+       (memq this-command
+             g2w-display-buffer-reuse-window-commands)))
+
+(defun g2w-display-buffer-reuse-command-window (buffer alist)
+  (if (and (boundp 'g2w-destination-window)
+           (memq g2w-destination-window (window-list)))
+      (let ((win g2w-destination-window))
+        (when (and (bound-and-true-p g2w-reuse-visible)
+                   (not (eq (window-buffer win) buffer)))
+          (let ((win-reuse
+                 (get-buffer-window buffer (selected-frame))))
+            (when win-reuse (setq win win-reuse))))
+        (window--display-buffer buffer win
+                                'reuse alist))
+    (funcall g2w-fallback-display-buffer-func buffer alist)))
 
 (add-to-list
  'display-buffer-alist
- '((lambda (buffer actions)
-     (memq this-command g2w-display-buffer-commands))
-   (lambda (buffer alist)
-     (if (and (boundp 'g2w-destination-window)
-              (memq g2w-destination-window (window-list)))
-         (let ((win g2w-destination-window))
-           (when (and (bound-and-true-p g2w-reuse-visible)
-                      (not (eq (window-buffer win) buffer)))
-             (let ((win-reuse
-                    (get-buffer-window buffer (selected-frame))))
-               (when win-reuse (setq win win-reuse))))
-           (window--display-buffer buffer win
-                                   'reuse alist
-                                   display-buffer-mark-dedicated))
-       (funcall g2w-fallback-display-buffer-func buffer alist)))
-   (inhibit-same-window . nil)))
+ '(g2w-reuse-command-window-p
+   g2w-display-buffer-reuse-command-window))
+
+;; (add-to-list
+;;  'display-buffer-alist
+;;  '(g2w-reuse-same-window-p
+;;    display-buffer-same-window))
+
+;; (add-to-list
+;;  'display-buffer-alist
+;;  '((lambda (buffer actions)
+;;      (memq this-command g2w-display-buffer-reuse-window-commands))
+;;    (lambda (buffer alist)
+;;      (if (and (boundp 'g2w-destination-window)
+;;               (memq g2w-destination-window (window-list)))
+;;          (let ((win g2w-destination-window))
+;;            (when (and (bound-and-true-p g2w-reuse-visible)
+;;                       (not (eq (window-buffer win) buffer)))
+;;              (let ((win-reuse
+;;                     (get-buffer-window buffer (selected-frame))))
+;;                (when win-reuse (setq win win-reuse))))
+;;            (window--display-buffer buffer win
+;;                                    'reuse alist
+;;                                    display-buffer-mark-dedicated))
+;;        (funcall g2w-fallback-display-buffer-func buffer alist)))
+;;    (inhibit-same-window . nil)))
 
 (cl-defmacro g2w-display (display-buffer-func
                           &optional (kill-on-quit nil))
@@ -859,6 +885,46 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
     (add-to-list 'default-frame-alist
                  '(font . "Hack-10.5"))
 
+    ;; see http://emacs.1067599.n8.nabble.com/bug-13011-24-2-Text-flickering-moving-cursor-with-box-around-text-enabled-td270885.html
+    ;;     https://emacs.stackexchange.com/questions/47002/adding-box-around-text-without-changing-the-text-width
+    ;; (set-face-attribute 'region nil
+    ;;                     :box '(:line-width (-1 . -1)
+    ;;                            :color "gtk_selection_bg_color"
+    ;;                            :style nil))
+    (unwind-protect
+        (condition-case ex
+            (progn
+             (set-face-attribute
+              'region nil
+              :box '(:line-width (-1 . -1)
+                                 :color "gtk_selection_bg_color"
+                                 :style nil))
+             ;; ;; see https://www.reddit.com/r/emacs/comments/345by9/having_the_background_face_for_selection_region/
+             ;; (setq redisplay-highlight-region-function
+             ;;       (lambda (start end window rol)
+             ;;         (if (not (overlayp rol))
+             ;;             (let ((nrol (make-overlay start end)))
+             ;;               (funcall redisplay-unhighlight-region-function rol)
+             ;;               (overlay-put nrol 'window window)
+             ;;               (overlay-put nrol 'face 'region)
+             ;;               ;; Low priority so that a large region always stays
+             ;;               ;; behind other regions. The box face should make it
+             ;;               ;; visible.
+             ;;               (overlay-put nrol 'priority '(-100 . -100))
+             ;;               nrol)
+             ;;           (unless (and (eq (overlay-buffer rol) (current-buffer))
+             ;;                        (eq (overlay-start rol) start)
+             ;;                        (eq (overlay-end rol) end))
+             ;;             (move-overlay rol start end (current-buffer)))
+             ;;           rol)))
+             )
+          ('error
+           (set-face-attribute
+            'region nil
+            :box '(:line-width -1
+                               :color "gtk_selection_bg_color"
+                               :style nil)))))
+
     ;; face-font-family-alternatives
 
     ;; (set-face-attribute 'default nil :font "Noto Mono" :height 110)
@@ -871,10 +937,12 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
     ;; see https://github.com/shosti/.emacs.d/blob/master/personal/p-display.el#L9
     (set-fontset-font t (decode-char 'ucs #x2d5b) "Noto Sans Tifinagh-9") ; ⵛ
     (set-fontset-font t (decode-char 'ucs #x2d59) "Noto Sans Tifinagh-9") ; ⵙ
-    (set-fontset-font t (decode-char 'ucs #x2b6f) "Symbola-9.5") ; ⭯
-    (set-fontset-font t (decode-char 'ucs #x2b73) "Symbola-9.5") ; ⭳
+    (set-fontset-font t (decode-char 'ucs #x2b6f) "Symbola-8.5") ; ⭯
+    (set-fontset-font t (decode-char 'ucs #x2b73) "Symbola-8.5") ; ⭳
+    (set-fontset-font t (decode-char 'ucs #x1f806) "Symbola-8.5") ; 🠆
+    ;; (set-fontset-font t (decode-char 'ucs #x1f426) "Symbola-9.5") ; 🐦
 
-    (defun set-cursor-according-to-mode ()
+    (defun rh-set-cursor-according-to-mode ()
       "Change cursor type according to some minor modes."
       (cond
        (buffer-read-only
@@ -884,7 +952,14 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
        (t
         (setq cursor-type normal-cursor-type))))
 
-    (add-hook 'post-command-hook 'set-cursor-according-to-mode))
+    (add-hook 'post-command-hook 'rh-set-cursor-according-to-mode))
+
+  ;; (setq next-error-recenter '(4))
+
+  (add-hook
+   'next-error-hook
+   (lambda ()
+     (recenter)))
 
   ;; Load secrets from outside of public SCM
   (load "~/.emacs.d/secret.el" t)
@@ -965,6 +1040,7 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
          ("C-x <kp-right>" . windmove-right)
          ("C-x <left>" . windmove-left)
          ("C-x <kp-left>" . windmove-left))
+  :after (yasnippet ivy counsel)
   :demand t)
 
 (setq load-prefer-newer t)
@@ -981,15 +1057,33 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
 ;; (setq split-height-threshold 20)
 ;; (setq split-width-threshold 90)
 
-;; see http://emacs.stackexchange.com/questions/12709/how-to-save-last-place-of-point-in-a-buffer
-(setq save-place-file vr-saved-places-file-path)
-(if (<= 25 (car vr-emacs-version))
-    (progn
-      (require 'saveplace)
-      (save-place-mode))
-  (progn
-    (setq-default save-place t)
-    (require 'saveplace)))
+(use-package saveplace
+  :init
+  (setq save-place-file vr-saved-places-file-path)
+
+  ;; (defadvice save-place-find-file-hook
+  ;;     (around rh-save-place-find-file-hook activate)
+  ;;   (when ad-do-it
+  ;;     (run-with-idle-timer 0 nil #'recenter)))
+
+  (defadvice save-place-find-file-hook
+      (around rh-save-place-find-file-hook activate)
+    (when ad-do-it
+      (run-with-timer
+       0 nil
+       (lambda (buf)
+         (dolist (win (get-buffer-window-list buf nil t))
+           (with-selected-window win (recenter))))
+       (current-buffer))))
+
+  (if (version< emacs-version "25.0")
+      (progn
+        (require 'saveplace)
+        (setq-default save-place t))
+    (save-place-mode 1))
+  ;; :config
+  ;; (remove-hook 'dired-initial-position-hook #'save-place-dired-hook)
+  :demand t)
 
 (setq default-input-method "russian-computer")
 
@@ -1186,8 +1280,8 @@ Also sets SYMBOL to VALUE."
             (rh-sml/position-percentage-format
              ,(propertize " " 'face 'sml/numbers-separator)))))
 
-  (setq sml/theme 'light)
-  ;; (setq sml/theme 'respectful)
+  ;; (setq sml/theme 'light)
+  (setq sml/theme 'automatic)
   ;; (setq sml/theme nil)
   (setq sml/show-eol t)
   (setq sml/col-number-format "%3c")
@@ -1200,38 +1294,99 @@ Also sets SYMBOL to VALUE."
 
   (sml/setup)
 
+  (eval-after-load "vc-hooks"
+    '(defadvice vc-mode-line (after rh-vc-mode-line () activate)
+       (when (stringp vc-mode)
+         (let ((text-properties (text-properties-at 1 vc-mode))
+               (noback
+                (replace-regexp-in-string
+                 (format "^ %s" (vc-backend buffer-file-name)) " " vc-mode)))
+           (when (> (string-width noback) 20)
+             (let (vc-mode-truncation-string noback-beg noback-end help-echo)
+               (setq help-echo (plist-get text-properties 'help-echo))
+               (setq help-echo (split-string help-echo "\n"))
+               (push "" help-echo)
+               (push (substring noback 1) help-echo)
+               (setq help-echo (string-join help-echo "\n"))
+               (plist-put text-properties 'help-echo help-echo)
+               (setq vc-mode-truncation-string
+                     (if (char-displayable-p ?…) "…" "..."))
+               (setq noback-beg (substring noback 0 14))
+               (setq noback-end (substring noback -5))
+               (setq noback (concat noback-beg
+                                    vc-mode-truncation-string
+                                    noback-end))
+               (add-text-properties 1 (length noback) text-properties noback)))
+           (setq vc-mode
+                 (propertize
+                  (if sml/vc-mode-show-backend vc-mode noback)
+                  'face
+                  (cond ((string-match "^ -" noback) 'sml/vc)
+                        ((string-match "^ [:@]" noback) 'sml/vc-edited)
+                        ((string-match "^ [!\\?]" noback) 'sml/modified))))))))
+
   :after (linum total-lines)
   :demand t
   :ensure t)
 
-(use-package help-mode
-  :init
-  (add-to-list 'display-buffer-alist
-               `("*Help*"
-                 ,(g2w-display #'display-buffer-in-side-window t)
-                 (side . bottom)
-                 (slot . 0)
-                 (inhibit-same-window . t)
-                 (window-height . 15)))
+(use-package rainbow-mode
+  :demand t
+  :ensure t)
 
+(use-package facemenu
   :config
+  (add-to-list 'display-buffer-alist
+               '("*Colors*"
+                 (display-buffer-same-window)))
+  :defer t)
+
+(use-package faces
+  :config
+  (add-to-list 'display-buffer-alist
+               '("*Faces*"
+                 (display-buffer-same-window))))
+
+(use-package help-mode
+  :config
+  ;; (add-to-list
+  ;;  'display-buffer-alist
+  ;;  '("*Help*"
+  ;;    (rh-display-buffer-reuse-right
+  ;;     rh-display-buffer-reuse-left
+  ;;     rh-display-buffer-reuse-down
+  ;;     rh-display-buffer-reuse-up)))
+
+  (add-to-list
+   'display-buffer-alist
+   '("*Help*"
+     (display-buffer-reuse-window
+      rh-display-buffer-reuse-right
+      rh-display-buffer-reuse-left
+      rh-display-buffer-reuse-down
+      rh-display-buffer-reuse-up
+      display-buffer-pop-up-window)))
+
   (setq help-window-select t)
-  (define-key help-mode-map (kbd "q") #'g2w-quit-window)
+  ;; (define-key help-mode-map (kbd "q") #'g2w-quit-window)
 
   :defer t)
 
 (use-package grep
-  :init
-  (add-to-list 'display-buffer-alist
-               `(,(g2w-condition "*grep*")
-                 ,(g2w-display #'display-buffer-in-side-window t)
-                 (inhibit-same-window . t)
-                 (window-height . 15)))
-
-  (add-to-list 'g2w-display-buffer-commands 'compile-goto-error)
-
   :config
-  (define-key grep-mode-map (kbd "q") #'g2w-quit-window)
+  (add-to-list
+   'display-buffer-alist
+   `(,(g2w-condition "*grep*")
+     (display-buffer-reuse-window
+      rh-display-buffer-reuse-right
+      rh-display-buffer-reuse-left
+      ;; rh-display-buffer-reuse-down
+      ;; rh-display-buffer-reuse-up
+      ;; display-buffer-use-some-window
+      display-buffer-pop-up-window)
+     (inhibit-same-window . t)))
+
+  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compilation-display-error)
 
   (add-hook
    'grep-mode-hook
@@ -1246,13 +1401,17 @@ Also sets SYMBOL to VALUE."
 
 (use-package replace
   :init
-  (add-to-list 'display-buffer-alist
-               `(,(g2w-condition "*Occur*")
-                 ,(g2w-display #'display-buffer-in-side-window t)
-                 (inhibit-same-window . t)
-                 (window-height . 15)))
+  (add-to-list
+   'display-buffer-alist
+   `(,(g2w-condition "*Occur*")
+     (display-buffer-reuse-window
+      rh-display-buffer-reuse-right
+      rh-display-buffer-reuse-left
+      display-buffer-use-some-window
+      display-buffer-pop-up-window)
+     (inhibit-same-window . t)))
 
-  (add-to-list 'g2w-display-buffer-commands
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
                'occur-mode-goto-occurrence)
 
   :config
@@ -1269,6 +1428,13 @@ Also sets SYMBOL to VALUE."
   :ensure t)
 
 (use-package iedit
+  :config
+  (custom-set-faces
+   '(iedit-occurrence
+     ((((background light)) (:background "light blue"))))
+   '(iedit-read-only-occurrence
+     ((((background light)) (:background "pale turquoise")))))
+
   :demand t
   :ensure t)
 
@@ -1280,9 +1446,9 @@ Also sets SYMBOL to VALUE."
                  (inhibit-same-window . t)
                  (window-height . 15)))
 
-  (add-to-list 'g2w-display-buffer-commands
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
                'xref-goto-xref)
-  (add-to-list 'g2w-display-buffer-commands
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
                'xref-show-location-at-point)
 
   :bind (:map xref--xref-buffer-mode-map
@@ -1316,6 +1482,7 @@ Also sets SYMBOL to VALUE."
   ;; (defadvice avy-goto-subword-1 (around rh-avy-goto-subword-1 () activate)
   ;;   ad-do-it
   ;;   (font-lock-flush))
+  (setq avy-all-windows 'all-frames)
 
   :bind (("C-c a w" . avy-goto-subword-1)
          ("M-f" . avy-goto-subword-1)
@@ -1550,12 +1717,12 @@ Also sets SYMBOL to VALUE."
 (use-package undo-tree
   :init
   ;; undo-tree-visualizer
-  (add-to-list 'display-buffer-alist
-               '("*undo-tree*"
-                 (display-buffer-in-side-window)
-                 (side . right)
-                 (slot . 0)
-                 (window-width . 30)))
+  ;; (add-to-list 'display-buffer-alist
+  ;;              '("*undo-tree*"
+  ;;                (display-buffer-in-side-window)
+  ;;                (side . right)
+  ;;                (slot . 0)
+  ;;                (window-width . 30)))
 
   :config
   (add-to-list 'rm-blacklist " Undo-Tree")
@@ -1653,8 +1820,8 @@ filename associated with it."
   (find-alternate-file ".."))
 
 (defun vr-dired-mode-setup ()
-  (make-local-variable 'coding-system-for-read)
-  (setq coding-system-for-read vr-dired-coding-system)
+  (set (make-local-variable 'coding-system-for-read) vr-dired-coding-system)
+  ;; (save-place-local-mode -1)
   (hl-line-mode 1)
   (define-key dired-mode-map (kbd "C-x C-f") 'vr-no-ido-find-alternate-file)
   (define-key dired-mode-map (kbd "<escape>") 'vr-dired-cancel)
@@ -1797,9 +1964,10 @@ get full control to what dired shows and leave only those
 fields which we need."
   (progn
     ad-do-it
-    (setq ad-return-value (concat
-      (substring ad-return-value 0 1)
-      (substring ad-return-value 13)))))
+    (setq ad-return-value
+          (concat
+           (substring ad-return-value 0 1)
+           (substring ad-return-value 13)))))
 
 (ad-activate 'ls-lisp-format)
 
@@ -1819,6 +1987,35 @@ fields which we need."
   :config
   (add-to-list 'rm-blacklist " ivy")
 
+  (add-to-list
+   'display-buffer-alist
+   `(,(g2w-condition
+       (lambda (buffer-nm action)
+         (eq (with-current-buffer buffer-nm major-mode)
+             'ivy-occur-grep-mode))
+       nil)
+     (display-buffer-reuse-window
+      rh-display-buffer-reuse-right
+      rh-display-buffer-reuse-left
+      ;; rh-display-buffer-reuse-down
+      ;; rh-display-buffer-reuse-up
+      ;; display-buffer-use-some-window
+      display-buffer-pop-up-window)
+     (inhibit-same-window . t)))
+
+  ;; (add-to-list 'g2w-display-buffer-reuse-window-commands 'ivy-occur-press-and-switch)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compilation-display-error)
+
+  ;; (defadvice ivy-occur-press-and-switch
+  ;;     (after rh-ivy-occur-press-and-switch activate)
+  ;;   (run-hooks 'next-error-hook))
+
+  ;; (defadvice ivy-occur-press-and-switch
+  ;;     (around rh-ivy-occur-press-and-switch activate)
+  ;;   (setq compilation-current-error (point))
+  ;;   (next-error 0))
+
   (setq ivy-use-virtual-buffers t)
   (setq ivy-count-format "%d/%d ")
   (setq ivy-height 8)
@@ -1834,7 +2031,11 @@ fields which we need."
          ("C-<return>" . ivy-alt-done)
          ("C-<kp-enter>" . ivy-alt-done)
          ("C-v" . nil)
-         ("M-v" . nil))
+         ("M-v" . nil)
+         :map ivy-occur-grep-mode-map
+         ("RET" . compile-goto-error)
+         ("M-<return>" . compilation-display-error)
+         ("M-<kp-enter>" . compilation-display-error))
 
   :demand t
   :ensure t)
@@ -1844,9 +2045,22 @@ fields which we need."
   :ensure t)
 
 (use-package swiper
+  :config
+  (defun rh-swiper-deduce (&optional initial-input do-not-shift-select)
+    (interactive)
+    (unless initial-input
+      (setq initial-input (rh-deduce-default-text t)))
+    (if do-not-shift-select
+        (swiper initial-input)
+      (minibuffer-with-setup-hook
+          #'rh-shift-select-current-line
+        (swiper initial-input))))
+
   :bind (("C-s" . 'swiper)
-         ("C-c s" . 'isearch-forward)
+         ("C-S-s" . 'rh-swiper-deduce)
+         ("M-s s" . 'isearch-forward)
          :map swiper-map
+         ("C-g" . abort-recursive-edit)
          ("M-y" . yank-pop))
 
   :demand t
@@ -1870,8 +2084,22 @@ fields which we need."
           (yank arg))
       (counsel-yank-pop)))
 
-  :bind (:map counsel-mode-map
+  (defun rh-counsel-ag-deduce (&optional initial-input)
+    (interactive)
+    (let* ((extra-ag-args (if current-prefix-arg nil ""))
+           (default-text (or initial-input (rh-deduce-default-text t)))
+           (current-prefix-arg t))
+      (counsel-ag default-text nil extra-ag-args)))
+
+  (defun rh-counsel-ag ()
+    (interactive)
+    (rh-counsel-ag-deduce ""))
+
+  :bind (("C-c s" . 'rh-counsel-ag)
+         ("C-c S" . 'rh-counsel-ag-deduce)
+         :map counsel-mode-map
          ("M-y" . rh-counsel-yank-pop))
+
   :demand t
   :ensure t)
 
@@ -1936,7 +2164,7 @@ fields which we need."
          ("TAB" . nil)
          ("C-`" . yas-expand)
          ("C-~" . yas-prev-field))
-  :defer t
+  :demand t
   :ensure t)
 
 (use-package yasnippet-snippets
@@ -1945,6 +2173,51 @@ fields which we need."
   :ensure t)
 
 ;; /b/} yasnippet
+
+;; /b/{ pos-tip
+
+(use-package pos-tip
+  :config
+  ;; (defvar pos-tip-foreground-color "#839496"
+  ;;   "Default foreground color of pos-tip's tooltip.")
+
+  ;; (defvar pos-tip-background-color "#073642"
+  ;;   "Default background color of pos-tip's tooltip.")
+
+  :ensure t)
+
+;; /b/} pos-tip
+
+;; /b/{ popup
+
+(use-package popup
+  :config
+  (defvar rh-popup-direction 'default
+    "Possible values are:
+ 'default' lets `popup-calculate-direction' function to determine direction;
+ 'company' selects direction opposite to company tooltip overlay if such
+    overlay exists or uses `popup-calculate-direction' if company overlay does
+    not exist or company mode is not enabled;
+  1 is above selected row
+  -1 is below selected row.")
+
+  (defadvice popup-calculate-direction
+      (around rh-popup-calculate-direction (height row) activate)
+    (cl-case rh-popup-direction
+      (1 (setq ad-return-value 1))
+      (-1 (setq ad-return-value -1))
+      ('company
+       (if (and (bound-and-true-p company-mode)
+                (bound-and-true-p company-pseudo-tooltip-overlay))
+           (setq ad-return-value
+                 (if (< (company--pseudo-tooltip-height) 0) 1 -1))
+         ad-do-it))
+      ('default ad-do-it)))
+
+  :defer t
+  :ensure t)
+
+;; /b/} popup
 
 ;; /b/{ auto-complete
 
@@ -1972,24 +2245,38 @@ fields which we need."
 (use-package fuzzy
   :ensure t)
 
-(use-package pos-tip
-  :config
-  ;; (defvar pos-tip-foreground-color "#839496"
-  ;;   "Default foreground color of pos-tip's tooltip.")
-
-  ;; (defvar pos-tip-background-color "#073642"
-  ;;   "Default background color of pos-tip's tooltip.")
-
-  :ensure t)
-
 (use-package auto-complete
   ;; :delight (auto-complete-mode " A")
   :config
   (setq ac-modes (delq 'js2-mode ac-modes))
   (setq ac-modes (delq 'js-mode ac-modes))
-  (setq ac-modes(delq 'javascript-mode ac-modes))
+  (setq ac-modes (delq 'javascript-mode ac-modes))
+  (setq ac-modes (delq 'emacs-lisp-mode ac-modes))
+  (setq ac-modes (delq 'lisp-interaction-mode ac-modes))
+  (setq ac-modes (delq 'cc-mode ac-modes))
+  (setq ac-modes (delq 'c++-mode ac-modes))
+  (setq ac-modes (delq 'c-mode ac-modes))
+  (setq ac-modes (delq 'js-jsx-mode ac-modes))
+  (setq ac-modes (delq 'js2-jsx-mode ac-modes))
 
   (ac-config-default)
+
+  (custom-set-faces
+   '(ac-completion-face
+     ((t (:background "light sky blue"
+          :foreground "systemmenutext"
+          :underline t))))
+   '(ac-selection-face
+     ((t (:background "light sky blue" :foreground "systemmenutext"))))
+   '(completion-dynamic-common-substring-face
+     ((((class color) (background light))
+       (:background "light steel blue" :foreground "systemmenutext"))))
+   '(completion-dynamic-prefix-alterations-face
+     ((((class color) (background light))
+       (:background "cyan" :foreground "systemmenutext"))))
+   '(completion-highlight-face
+     ((((class color) (background light))
+       (:background "light sky blue" :underline t)))))
 
   (setq ac-fuzzy-enable t)
   (setq ac-use-quick-help nil)
@@ -2040,7 +2327,7 @@ fields which we need."
   :after (fuzzy pos-tip)
   :ensure t)
 
-(defun vr-ac-start-if-ac-mode ()
+(defun rh-ac-start-if-ac-mode ()
   (interactive)
   (cond
    ((cg-looking-at-auto-code-group-head-or-tail)
@@ -2067,7 +2354,7 @@ fields which we need."
   ;;   (message "No auto-completion running or nothing to complete."))
   )
 
-(global-set-key (kbd "C-<tab>") 'vr-ac-start-if-ac-mode)
+(global-set-key (kbd "C-<tab>") 'rh-ac-start-if-ac-mode)
 ;; (global-set-key (kbd "<f7>") 'auto-complete-mode)
 
 ;; /b/} auto-complete
@@ -2079,6 +2366,50 @@ fields which we need."
   (defvar rh-company-display-permanent-doc-buffer nil)
 
   :config
+  ;; (add-to-list 'display-buffer-alist
+  ;;              '("*company-documentation*"
+  ;;                (lambda (buffer alist)
+  ;;                  (or (let ((win (display-buffer-below-selected buffer alist)))
+  ;;                        (message "*** ooo")
+  ;;                        (shrink-window-if-larger-than-buffer win)
+  ;;                        win)
+  ;;                      (display-buffer-reuse-window buffer alist)
+  ;;                      (display-buffer-use-some-window buffer alist)
+  ;;                      (display-buffer-pop-up-window buffer alist)))
+  ;;                ;; (display-buffer-below-selected
+  ;;                ;;  display-buffer-reuse-window
+  ;;                ;;  display-buffer-use-some-window
+  ;;                ;;  display-buffer-pop-up-window)
+  ;;                (inhibit-same-window . t)
+  ;;                (window-height . 0.3)))
+
+  ;; (add-to-list
+  ;;  'display-buffer-alist
+  ;;  '("*company-documentation*"
+  ;;    ((lambda (buffer alist)
+  ;;       (or (let ((win (display-buffer-below-selected buffer alist)))
+  ;;          (when win
+  ;;            (run-with-timer
+  ;;             0 nil
+  ;;             (lambda (win)
+  ;;               (shrink-window-if-larger-than-buffer win))
+  ;;             win))
+  ;;          win)
+  ;;        (display-buffer-use-some-window buffer alist)
+  ;;        (display-buffer-pop-up-window buffer alist))))
+  ;;    (inhibit-same-window . t)
+  ;;    (window-height . 0.3)))
+
+  (add-to-list
+   'display-buffer-alist
+   '("*company-documentation*"
+     (display-buffer-reuse-window
+      rh-display-buffer-reuse-right
+      rh-display-buffer-reuse-left
+      display-buffer-use-some-window
+      display-buffer-pop-up-window)
+     (inhibit-same-window . t)))
+
   (setq company-lighter-base "CA")
 
   ;; TODO: write to https://github.com/company-mode/company-mode/issues/123
@@ -2203,7 +2534,24 @@ fields which we need."
   ;;    ((((type x)) (:inherit company-tooltip-selection :weight bold))
   ;;     (t (:inherit company-tooltip-selection)))))
 
+  (setq company-lighter
+        '(" "
+          (company-candidates
+           (:eval
+            (if (consp company-backend)
+                (company--group-lighter (nth company-selection
+                                             company-candidates)
+                                        company-lighter-base)
+              (cond
+               ((eq company-backend 'company-tern) "CA-ρ")
+               ((eq company-backend 'company-tide) "CA-τ")
+               (t (symbol-name company-backend)))))
+           company-lighter-base)))
+
   :ensure t)
+
+;; (use-package company-quickhelp
+;;   :ensure)
 
 ;; /b/} company
 
@@ -2214,10 +2562,21 @@ fields which we need."
   (setq flycheck-mode-line-prefix "Φ")
   (setq flycheck-check-syntax-automatically '(save mode-enabled))
 
-  (flycheck-add-mode 'typescript-tslint 'web-mode)
-  (flycheck-add-next-checker 'javascript-eslint 'javascript-tide 'append)
+  (setq flycheck-indication-mode nil)
 
-  :after tide
+  :ensure t)
+
+(use-package flycheck-popup-tip
+  :config
+  (add-hook
+   'flycheck-mode-hook
+   (lambda ()
+     (set (make-local-variable 'rh-popup-direction) 'company)
+     (flycheck-popup-tip-mode 1)))
+
+  ;; (setq flycheck-popup-tip-error-prefix "> ")
+
+  :after (flycheck popup)
   :ensure t)
 
 ;; (use-package flycheck-pos-tip
@@ -2231,14 +2590,6 @@ fields which we need."
 
 ;;   :after (flycheck pos-tip)
 ;;   :ensure t)
-
-(use-package flycheck-popup-tip
-  :config
-  (add-hook 'flycheck-mode-hook 'flycheck-popup-tip-mode)
-  ;; (setq flycheck-popup-tip-error-prefix "> ")
-
-  :after flycheck
-  :ensure t)
 
 ;; /b/} flycheck
 
@@ -2269,22 +2620,30 @@ fields which we need."
 
 (use-package compile
   :config
+  (setq compilation-scroll-output t)
+
   (setf (cdr (assq 'compilation-in-progress minor-mode-alist)) '(" ⵛ"))
 
   (add-to-list 'display-buffer-alist
                `(,(g2w-condition "*compilation*" nil)
                  ,(g2w-display #'display-buffer-in-side-window)
+                 ;; (display-buffer-in-side-window)
                  (inhibit-same-window . t)
                  (window-height . 15)))
 
-  (add-to-list 'g2w-display-buffer-commands 'compile-goto-error)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compilation-display-error)
 
   (defun rh-compile-toggle-display ()
     (interactive)
     (rh-toggle-display "*compilation*"))
 
   :bind (:map compilation-mode-map
-         ("q" . g2w-quit-window))
+         ("q" . g2w-quit-window)
+         ;; ("<return>" . compilation-display-error)
+         ;; ("<kp-enter>" . compilation-display-error)
+         ("M-<return>" . compilation-display-error)
+         ("M-<kp-enter>" . compilation-display-error))
   :defer)
 
 ;; /b/} compile
@@ -2419,6 +2778,15 @@ fields which we need."
   (setq hs-allow-nesting t)
   (setq hs-isearch-open t)
 
+  (defun rh-hs-set-up-overlay-handler (ov)
+    (overlay-put ov 'display
+                 (format (if (char-displayable-p ?•) " [• %d •] " " [* %d *] ")
+                         (count-lines (overlay-start ov)
+                                      (overlay-end ov))))
+    (overlay-put ov 'face 'shadow))
+
+  (setq hs-set-up-overlay 'rh-hs-set-up-overlay-handler)
+
   ;; This should be uncommented when cg becomes a mode which overrides
   ;; this key map
   ;; (define-key hs-minor-mode-map (kbd "C-S-j") #'hs-toggle-hiding)
@@ -2492,54 +2860,95 @@ fields which we need."
     '("--graph" "--color" "--decorate" "-n256"))
 
   :config
+  (add-to-list 'display-buffer-alist
+               '((lambda (buffer-nm action)
+                   (and (not (eq major-mode 'magit-diff-mode))
+                        (eq (with-current-buffer buffer-nm major-mode)
+                            'magit-status-mode)))
+                 (display-buffer-same-window
+                  rh-display-buffer-reuse-right
+                  rh-display-buffer-reuse-left
+                  rh-display-buffer-reuse-down
+                  rh-display-buffer-reuse-up
+                  display-buffer-pop-up-window)))
+
+  (add-to-list 'display-buffer-alist
+               '((lambda (buffer-nm action)
+                   (and (eq major-mode 'magit-diff-mode)
+                        (eq (with-current-buffer buffer-nm major-mode)
+                            'magit-status-mode)))
+                 (rh-display-buffer-reuse-right
+                  rh-display-buffer-reuse-left
+                  rh-display-buffer-reuse-down
+                  rh-display-buffer-reuse-up
+                  display-buffer-pop-up-window)
+                 (inhibit-same-window . t)))
+
+  (add-to-list 'display-buffer-alist
+               '((lambda (buffer-nm action)
+                   (and (eq last-command 'magit-commit-create)
+                        (eq (with-current-buffer buffer-nm major-mode)
+                            'magit-diff-mode)))
+                 (display-buffer-reuse-mode-window
+                  rh-display-buffer-reuse-right
+                  rh-display-buffer-reuse-left
+                  rh-display-buffer-reuse-down
+                  rh-display-buffer-reuse-up
+                  display-buffer-pop-up-window)
+                 (inhibit-same-window . t)))
+
   ;; See https://github.com/magit/magit/issues/2541
-  (setq magit-display-buffer-function
-        (lambda (buffer)
-          (display-buffer
-           buffer (if (and (derived-mode-p 'magit-mode)
-                           (memq (with-current-buffer buffer major-mode)
-                                 '(magit-process-mode
-                                   ;; magit-revision-mode
-                                   ;; magit-diff-mode
-                                   magit-stash-mode
-                                   magit-status-mode)))
-                      nil
-                    '(display-buffer-same-window)))))
+  ;; (setq magit-display-buffer-function
+  ;;       (lambda (buffer)
+  ;;         (display-buffer
+  ;;          buffer (if (and (derived-mode-p 'magit-mode)
+  ;;                          (memq (with-current-buffer buffer major-mode)
+  ;;                                '(magit-process-mode
+  ;;                                  magit-revision-mode
+  ;;                                  magit-diff-mode
+  ;;                                  magit-stash-mode
+  ;;                                  magit-status-mode)))
+  ;;                     nil
+  ;;                   '(display-buffer-same-window)))))
+  :ensure t)
+
+(use-package git-timemachine
   :ensure t)
 
 (use-package gud
   :config
-  (defun vr-gud-call-func (begin end func)
-    (let ((pos (point)))
-      (funcall func '(begin end))
-      ;; Allow debugger to run and return to the source buffer.
-      ;; TODO: find how to wait on debugger instead of guessing the time.
-      (sleep-for 0.1)
-      (goto-char pos)))
+  ;; (defun vr-gud-call-func (begin end func)
+  ;;   (let ((pos (point)))
+  ;;     (funcall func '(begin end))
+  ;;     ;; Allow debugger to run and return to the source buffer.
+  ;;     ;; TODO: find how to wait on debugger instead of guessing the time.
+  ;;     (sleep-for 0.1)
+  ;;     (goto-char pos)))
 
-  (defun vr-gud-print (begin end)
-    (interactive (vr-point-or-region))
-    (vr-gud-call-func begin end 'gud-print))
+  ;; (defun vr-gud-print (begin end)
+  ;;   (interactive (rh-point-or-region))
+  ;;   (vr-gud-call-func begin end 'gud-print))
 
-  (defun vr-gud-break (begin end)
-    (interactive (vr-point-or-region))
-    (vr-gud-call-func begin end 'gud-break))
+  ;; (defun vr-gud-break (begin end)
+  ;;   (interactive (rh-point-or-region))
+  ;;   (vr-gud-call-func begin end 'gud-break))
 
-  (defun vr-gud-tbreak (begin end)
-    (interactive (vr-point-or-region))
-    (vr-gud-call-func begin end 'gud-tbreak))
+  ;; (defun vr-gud-tbreak (begin end)
+  ;;   (interactive (rh-point-or-region))
+  ;;   (vr-gud-call-func begin end 'gud-tbreak))
 
-  (defun vr-gud-remove (begin end)
-    (interactive (vr-point-or-region))
-    (vr-gud-call-func begin end 'gud-remove))
+  ;; (defun vr-gud-remove (begin end)
+  ;;   (interactive (rh-point-or-region))
+  ;;   (vr-gud-call-func begin end 'gud-remove))
 
-  (define-key gud-minor-mode-map (kbd "<f5>") 'vr-gud-print)
-  (define-key gud-minor-mode-map (kbd "S-<f5>") 'gud-watch)
-  (define-key gud-minor-mode-map (kbd "<f9>") 'vr-gud-break)
-  (define-key gud-minor-mode-map (kbd "S-<f9>") 'vr-gud-tbreak)
-  (define-key gud-minor-mode-map (kbd "C-<f9>") 'vr-gud-remove)
-  (define-key gud-minor-mode-map (kbd "<f10>") 'gud-next)
-  (define-key gud-minor-mode-map (kbd "<f11>") 'gud-step))
+  ;; (define-key gud-minor-mode-map (kbd "<f5>") 'vr-gud-print)
+  ;; (define-key gud-minor-mode-map (kbd "S-<f5>") 'gud-watch)
+  ;; (define-key gud-minor-mode-map (kbd "<f9>") 'vr-gud-break)
+  ;; (define-key gud-minor-mode-map (kbd "S-<f9>") 'vr-gud-tbreak)
+  ;; (define-key gud-minor-mode-map (kbd "C-<f9>") 'vr-gud-remove)
+  ;; (define-key gud-minor-mode-map (kbd "<f10>") 'gud-next)
+  ;; (define-key gud-minor-mode-map (kbd "<f11>") 'gud-step)
+  )
 
 ;; (gdb-registers-buffer      gdb-registers-buffer-name   gdb-registers-mode   gdb-invalidate-registers  )
 ;; (gdb-locals-buffer         gdb-locals-buffer-name      gdb-locals-mode      gdb-invalidate-locals     )
@@ -2551,53 +2960,55 @@ fields which we need."
 ;; (gdb-inferior-io           gdb-inferior-io-name        gdb-inferior-io-mode                           )
 ;; (gdb-partial-output-buffer gdb-partial-output-name                                                    )
 
+;; /b/{ gdb-mi
+
 (use-package gdb-mi
-  :init
-  (defvar vr-gdb-original-buffer nil)
+  ;; :init
+  ;; (defvar vr-gdb-original-buffer nil)
 
   :config
-  (defadvice gdb-setup-windows (around vr-gdb-setup-windows ())
-    "Layout the window pattern for option `gdb-many-windows'."
-    (gdb-get-buffer-create 'gdb-locals-buffer)
-    (gdb-get-buffer-create 'gdb-stack-buffer)
-    (gdb-get-buffer-create 'gdb-breakpoints-buffer)
-    (set-window-dedicated-p (selected-window) t)
-    (switch-to-buffer gud-comint-buffer)
-    (delete-other-windows)
-    (let ((win0 (selected-window))
-          (win1 (split-window nil ( / ( * (window-height) 4) 5)))
-          (win2 (split-window nil ( / (window-height) 4)))
-          ;; (win3 (split-window-right))
-          )
-      ;; (gdb-set-window-buffer (gdb-locals-buffer-name) nil win3)
-      (select-window win2)
-      (set-window-buffer
-       win2
-       (if gud-last-last-frame
-           (gud-find-file (car gud-last-last-frame))
-         (if gdb-main-file
-             (gud-find-file gdb-main-file)
-           ;; Put buffer list in window if we
-           ;; can't find a source file.
-           (list-buffers-noselect))))
-      ;; (set-window-dedicated-p (selected-window) nil)
-      (setq gdb-source-window (selected-window))
-      (select-window (split-window-below))
-      (switch-to-buffer vr-gdb-original-buffer)
-      ;; (let ((win4 (split-window-right)))
-      ;;   (gdb-set-window-buffer
-      ;;    (gdb-get-buffer-create 'gdb-inferior-io) nil win4))
-      (select-window win1)
-      (gdb-set-window-buffer (gdb-stack-buffer-name))
-      (let ((win5 (split-window-right)))
-        (gdb-set-window-buffer (if gdb-show-threads-by-default
-                                   (gdb-threads-buffer-name)
-                                 (gdb-breakpoints-buffer-name))
-                               nil win5))
-      (select-window win0)))
+  ;; (defadvice gdb-setup-windows (around vr-gdb-setup-windows ())
+  ;;   "Layout the window pattern for option `gdb-many-windows'."
+  ;;   (gdb-get-buffer-create 'gdb-locals-buffer)
+  ;;   (gdb-get-buffer-create 'gdb-stack-buffer)
+  ;;   (gdb-get-buffer-create 'gdb-breakpoints-buffer)
+  ;;   (set-window-dedicated-p (selected-window) t)
+  ;;   (switch-to-buffer gud-comint-buffer)
+  ;;   (delete-other-windows)
+  ;;   (let ((win0 (selected-window))
+  ;;         (win1 (split-window nil ( / ( * (window-height) 4) 5)))
+  ;;         (win2 (split-window nil ( / (window-height) 4)))
+  ;;         ;; (win3 (split-window-right))
+  ;;         )
+  ;;     ;; (gdb-set-window-buffer (gdb-locals-buffer-name) nil win3)
+  ;;     (select-window win2)
+  ;;     (set-window-buffer
+  ;;      win2
+  ;;      (if gud-last-last-frame
+  ;;          (gud-find-file (car gud-last-last-frame))
+  ;;        (if gdb-main-file
+  ;;            (gud-find-file gdb-main-file)
+  ;;          ;; Put buffer list in window if we
+  ;;          ;; can't find a source file.
+  ;;          (list-buffers-noselect))))
+  ;;     ;; (set-window-dedicated-p (selected-window) nil)
+  ;;     (setq gdb-source-window (selected-window))
+  ;;     (select-window (split-window-below))
+  ;;     (switch-to-buffer vr-gdb-original-buffer)
+  ;;     ;; (let ((win4 (split-window-right)))
+  ;;     ;;   (gdb-set-window-buffer
+  ;;     ;;    (gdb-get-buffer-create 'gdb-inferior-io) nil win4))
+  ;;     (select-window win1)
+  ;;     (gdb-set-window-buffer (gdb-stack-buffer-name))
+  ;;     (let ((win5 (split-window-right)))
+  ;;       (gdb-set-window-buffer (if gdb-show-threads-by-default
+  ;;                                  (gdb-threads-buffer-name)
+  ;;                                (gdb-breakpoints-buffer-name))
+  ;;                              nil win5))
+  ;;     (select-window win0)))
 
-  (defadvice gdb (before vr-gdb (command-line))
-    (setq vr-gdb-original-buffer (window-buffer)))
+  ;; (defadvice gdb (before vr-gdb (command-line))
+  ;;   (setq vr-gdb-original-buffer (window-buffer)))
 
   ;; use gdb-many-windows by default
   (setq gdb-many-windows t)
@@ -2606,20 +3017,24 @@ fields which we need."
   (setq gdb-delete-out-of-scope nil)
   (gdb-speedbar-auto-raise))
 
-;; /b/{ RealGUD
+;; /b/} gdb-mi
+
+;; /b/{ realgud
 
 ;; Autoinstall from init is disabled until the following problem is solved:
 ;; https://github.com/syl20bnr/spacemacs/issues/5917
 (use-package realgud
   :commands (realgud:gdb realgud:gdb-pid realgud:pdb realgud:ipdb)
-  :pin melpa)
 
-;; /b/} RealGUD
+  :pin melpa
+  :ensure t)
+
+;; /b/} realgud
 
 ;; /b/{ C++
 
 (use-package rtags
-  :commands rtags-start-process-unless-running
+  ;; :commands rtags-start-process-unless-running
   :config
   ;; Idea is taken from:
   ;; https://www.reddit.com/r/emacs/comments/345vtl/make_helm_window_at_the_bottom_without_using_any/
@@ -2629,22 +3044,18 @@ fields which we need."
                  (inhibit-same-window . t)
                  (window-height . 0.3)))
 
-  (add-to-list 'g2w-display-buffer-commands
-               'rtags-select-and-remove-rtags-buffer)
-  (add-to-list 'g2w-display-buffer-commands
-               'rtags-select-other-window)
-
-  (add-to-list 'g2w-display-buffer-commands
-               'rtags-next-match)
-  (add-to-list 'g2w-display-buffer-commands
-               'rtags-previous-match)
-
-  (add-to-list 'g2w-display-buffer-commands
-               'rtags-find-symbol-at-point)
-  (add-to-list 'g2w-display-buffer-commands
-               'rtags-references-tree)
-  (add-to-list 'g2w-display-buffer-commands
-               'rtags-find-virtuals-at-point)
+  ;; If following symbol without completion buffer, do it in the same window
+  (add-to-list 'display-buffer-alist
+               '((lambda (buffer-nm actions)
+                   (with-current-buffer buffer-nm
+                     (and (not (string= buffer-nm "*RTags*"))
+                          (not (boundp 'g2w-destination-window))
+                          (memq this-command
+                                '(rtags-find-symbol-at-point
+                                  rtags-find-references-at-point
+                                  rtags-find-virtuals-at-point
+                                  rtags-references-tree)))))
+                 (display-buffer-same-window)))
 
   (add-to-list 'display-buffer-alist
                '("*rdm*"
@@ -2652,6 +3063,25 @@ fields which we need."
                  (side . top)
                  (inhibit-same-window . t)
                  (window-height . 6)))
+
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-select-and-remove-rtags-buffer)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-select-other-window)
+
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-next-match)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-previous-match)
+
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-find-symbol-at-point)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-find-references-at-point)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-find-virtuals-at-point)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'rtags-references-tree)
 
   (defun rh-rtags-toggle-rdm-display ()
     (interactive)
@@ -2681,7 +3111,22 @@ fields which we need."
 
   (setq rtags-other-window-function (lambda () (other-window -1)))
   (setq rtags-results-buffer-other-window t)
-  (setq rtags-bury-buffer-function (lambda () (quit-window t)))
+  (setq rtags-bury-buffer-function 'quit-window)
+
+  (add-hook
+   'rtags-references-tree-mode-hook
+   (lambda ()
+     (set (make-local-variable 'truncate-lines) t)))
+
+  (add-hook
+   'rtags-mode-hook
+   (lambda ()
+     (set (make-local-variable 'truncate-lines) t)))
+
+  (add-hook
+   'rtags-diagnostics-mode-hook
+   (lambda ()
+     (set (make-local-variable 'truncate-lines) t)))
 
   (rtags-enable-standard-keybindings)
   ;; (define-key c-mode-base-map (kbd "C-c r d") 'rh-rtags-toggle-rdm-display)
@@ -2711,16 +3156,7 @@ fields which we need."
   (bind-key "C-." #'rtags-find-symbol c-mode-base-map)
   (bind-key "C-," #'rtags-find-references c-mode-base-map)
 
-  (add-hook
-   'rtags-references-tree-mode-hook
-   (lambda ()
-     (set (make-local-variable 'truncate-lines) t)))
-
-  (add-hook
-   'rtags-mode-hook
-   (lambda ()
-     (set (make-local-variable 'truncate-lines) t)))
-
+  :defer t
   :pin manual)
 
 (use-package modern-cpp-font-lock
@@ -2750,8 +3186,14 @@ fields which we need."
   :pin manual)
 
 (use-package cc-mode
-  :mode "/hpp\\'\\|\\.ipp\\'\\|\\.h\\'"
+  ;; :mode "/hpp\\'\\|\\.ipp\\'\\|\\.h\\'"
+  :mode "/hpp\\'\\|\\.ipp\\'"
   :config
+  (require 'compile)
+  (require 'auto-complete-c-headers)
+  (require 'auto-complete-clang)
+  (require 'rtags)
+
   (defvar-local rh-c++-compiler "g++")
   (defvar-local rh-c++-std "-std=c++1z")
 
@@ -2773,14 +3215,11 @@ fields which we need."
     (message "auto-completing with clang...")
     (auto-complete (append '(ac-source-clang) ac-sources)))
 
-  (defun rh-c++-compile-setup ()
-    (require 'compile)
-    (setq compilation-scroll-output t)
-    (let ((path (rh-project-get-path)))
-      (when path
+  (defun rh-cc-compile-setup ()
+    (let ((project-path (rh-project-get-path)))
+      (when project-path
         (set (make-local-variable 'compile-command)
-             (concat path "make -k"))
-        (message (concat "rh-project: " path)))))
+             (concat project-path "make -k")))))
 
   (defun rh-c++-yas-setup ()
     (let* ((project-path (rh-project-get-path))
@@ -2795,7 +3234,7 @@ fields which we need."
   (defun rh-c++-indentation-setup ()
     (rh-c-style-setup))
 
-  (defun rh-c++-rtags-setup ()
+  (defun rh-cc-rtags-setup ()
     (rtags-start-process-unless-running)
     ;; The following does not work with my clang-auto-complete setting
     ;; (setq rtags-display-current-error-as-tooltip t)
@@ -2803,7 +3242,7 @@ fields which we need."
 
   (defun rh-c++-ac-setup ()
     ;; see https://github.com/mooz/auto-complete-c-headers
-    (require 'auto-complete-c-headers)
+
     ;; #include auto-completion search paths
     (set (make-local-variable 'achead:include-directories)
          (append (rh-project-get-include-path "c++")
@@ -2816,7 +3255,6 @@ fields which we need."
     ;; (setq rtags-completions-enabled t)
 
     ;; ;; see https://github.com/brianjcj/auto-complete-clang
-    (require 'auto-complete-clang)
 
     ;; i.e. 'echo "" | g++ -v -x c++ -E -'
     ;; (setq clang-completion-suppress-error 't)
@@ -2841,7 +3279,9 @@ fields which we need."
 
     (let ((local-ac-completing-map (copy-keymap ac-completing-map)))
       (set (make-local-variable 'ac-completing-map) local-ac-completing-map))
-    (local-set-key (kbd "C-x C-<tab>") #'rh-c++-auto-complete-clang))
+    (local-set-key (kbd "C-x C-<tab>") #'rh-c++-auto-complete-clang)
+
+    (auto-complete-mode 1))
 
   (add-hook
    'c++-mode-hook
@@ -2849,17 +3289,29 @@ fields which we need."
      ;; Using yas instead
      (abbrev-mode -1)
      (rh-programming-minor-modes t)
+     (rh-cc-rtags-setup)
      (rh-c++-indentation-setup)
      (rh-c++-font-lock-setup)
      (rh-c++-yas-setup)
-     (rh-c++-compile-setup)
-     (rh-c++-rtags-setup)
-     (rh-c++-ac-setup)))
+     (rh-cc-compile-setup)
+     (rh-c++-ac-setup)
+     (rh-project-setup)))
 
-  :bind (:map c++-mode-map
+  (add-hook
+   'c-mode-hook
+   (lambda ()
+     ;; Using yas instead
+     (abbrev-mode -1)
+     (rh-programming-minor-modes t)
+     (rh-cc-rtags-setup)
+     (rh-cc-compile-setup)
+     (rh-project-setup)))
+
+  :bind (:map c-mode-base-map
          ("C-S-b" . recompile)
          :map c-mode-base-map
          ("C-c b" . rh-compile-toggle-display))
+
   :defer t)
 
 ;; /b/} C++
@@ -2881,6 +3333,11 @@ fields which we need."
                             (equal pair '("nodejs" . js-mode))))
                       interpreter-mode-alist))
 
+  (setq auto-mode-alist
+        (cl-delete-if (lambda (pair)
+                        (equal pair '("\\.jsx\\'" . js-jsx-mode)))
+                      auto-mode-alist))
+
   ;; Indentation style ajustments
   (setq js-indent-level 2)
   (setq js-switch-indent-offset 2)
@@ -2888,16 +3345,11 @@ fields which we need."
   (add-hook
    'js-mode-hook
    (lambda ()
-     ;; Indium-mode keeps enabling/disabling it in REPL
-     ;; TODO: Investigate why Indium-mode REPL does that and if it can be fixed
-     (unless (or (equal (buffer-name) "*indium-fontification*")
-                 (eq major-mode 'js2-mode))
-       (require 'indium)
-       (rh-programming-minor-modes 1)
-       (rh-project-setup))))
+     (rh-programming-minor-modes 1)
+     (rh-project-setup)))
 
   :bind (:map js-mode-map
-         ("<S-f5>" . rh-indium-interaction-and-run))
+         ("<f7>" . #'rh-nodejs-interaction))
   :defer t)
 
 ;; /b/} js-mode
@@ -2907,59 +3359,53 @@ fields which we need."
 (use-package js2-mode
   :mode "\\.js\\'"
   :interpreter "node"
-  ;; "λ" stands for interactive and "i" for indium mode
-  ;; :delight '((:eval (if (bound-and-true-p indium-interaction-mode)
-  ;;                       "js2λi"
-  ;;                     "js2"))
-  ;;            :major)
-  :delight '("js2" :major)
+  ;; "λ" stands for interactive and "n" for nodejs-repl
+  :delight '((:eval (if (bound-and-true-p rh-nodejs-interaction)
+                        "js2λn"
+                      "js2"))
+             :major)
   :config
+  (require 'config-js2-mode)
+  (require 'nodejs-repl)
+  (require 'company)
+
   ;; Indentation style ajustments
   (setq js-indent-level 2)
   (setq js-switch-indent-offset 2)
   (setq js2-skip-preprocessor-directives t)
 
-  (defvar-local rh-js2-additional-externs '())
-
-  ;; see http://emacswiki.org/emacs/Js2Mode After js2 has parsed a js file, we
-  ;; look for jslint globals decl comment ("/* global Fred, _, Harry */") and
-  ;; add any symbols to a buffer-local var of acceptable global vars Note that
-  ;; we also support the "symbol: true" way of specifying names via a hack
-  ;; (remove any ":true" to make it look like a plain decl, and any ':false' are
-  ;; left behind so they'll effectively be ignored as you can't have a symbol
-  ;; called "someName:false"
-  (add-hook
-   'js2-post-parse-callbacks
-   (lambda ()
-     (when (> (buffer-size) 0)
-       (let ((btext (replace-regexp-in-string
-                     ": *true" " "
-                     (replace-regexp-in-string
-                      "[\n\t ]+"
-                      " "
-                      (buffer-substring-no-properties 1 (buffer-size))
-                      t t))))
-         (mapc (apply-partially 'add-to-list 'js2-additional-externs)
-               (append
-                rh-js2-additional-externs
-                (split-string
-                 (if (string-match
-                      "/\\* *global *\\(.*?\\) *\\*/" btext)
-                     (match-string-no-properties 1 btext) "")
-                 " *, *" t)))))))
-
+  ;; js-mode-hook is executed before js2-mode-hook
   (add-hook
    'js2-mode-hook
    (lambda ()
-     (rh-programming-minor-modes 1)
-     (rh-project-setup)))
+     ;; (add-hook 'xref-backend-functions #'xref-js2-xref-backend nil t)
+     (company-mode 1)))
 
-  :bind (:map js-mode-map
-         ("<S-f5>" . rh-indium-interaction-and-run))
-  :defer t
   :ensure t)
 
+;; (use-package js2-jsx-mode
+;;   :mode "\\.jsx\\'")
+
 ;; /b/} js2-mode
+
+;; /b/{ xref-js2
+
+;; (use-package xref-js2
+;;   :config
+;;   ;; (setq xref-js2-ignored-dirs (delete "node_modules" xref-js2-ignored-dirs))
+;;   (setq xref-js2-ignored-dirs '("build"))
+;;   (add-to-list 'xref-js2-ag-arguments "-t")
+
+;;   (defadvice xref-js2--root-dir (around rh-xref-js2--root-dir activate)
+;;     (setq ad-return-value
+;;           (or (let ((proj-root (rh-project-get-root)))
+;;                 (and proj-root
+;;                      (expand-file-name proj-root)))
+;;               ad-do-it)))
+
+;;   :ensure t)
+
+;; /b/} xref-js2
 
 ;; /b/{ js2-refactor
 
@@ -2982,10 +3428,73 @@ fields which we need."
      (rh-programming-minor-modes 1)
      (rh-project-setup)))
 
+  :bind (:map typescript-mode-map
+         ("{" . nil)
+         ("}" . nil)
+         ("(" . nil)
+         (")" . nil)
+         (":" . nil)
+         (";" . nil)
+         ("," . nil)
+         ("\"" . nil)
+         ("'" . nil))
   :defer t
   :ensure t)
 
 ;; /b/} typescript-mode
+
+;; /b/{ tern
+
+(use-package tern
+  :delight (tern-mode " ρ")
+  :config
+
+  (setq tern-command (list "npx" "tern"))
+  (setq tern-update-argument-hints-timer -1)
+
+  (defun rh-company-tern-display-permanent-doc-buffer ()
+    (let ((buf (get-buffer-create "*company-documentation*")))
+      (display-buffer buf)
+      ;; (run-with-timer
+      ;;  0 nil
+      ;;  (lambda (buf)
+      ;;    (dolist (win (get-buffer-window-list buf nil t))
+      ;;      (shrink-window-if-larger-than-buffer win)))
+      ;;  buf)
+      ))
+
+  ;; (add-hook
+  ;;  'tern-mode-hook
+  ;;  (lambda ()
+  ;;    (set (make-local-variable 'rh-company-display-permanent-doc-buffer)
+  ;;         #'rh-company-tern-display-permanent-doc-buffer)))
+
+  :bind (:map tern-mode-keymap
+         ("M-." . nil)
+         ("C-M-." . nil)
+         ("M-," . nil)
+         ("C-c c-r" . nil)
+         ("C-." . tern-find-definition)
+         ("C-/" . tern-find-definition-by-name)
+         ("C-," . tern-pop-find-definition)
+         ;; ("M-h" . tern-get-docs)
+         ;; ("C-c C-R" . tern-rename-variable)
+         )
+  :defer t
+  :ensure t)
+
+;; /b/} tern
+
+;; /b/{ company-tern
+
+(use-package company-tern
+  :config
+  (add-to-list 'company-backends 'company-tern)
+
+  :after tern
+  :ensure t)
+
+;; /b/} company-tern
 
 ;; /b/{ ac-js2
 
@@ -3002,7 +3511,7 @@ fields which we need."
 ;; /b/{ skewer-mode
 
 (defun vr-skewer-eval-last-expression-or-region (start end)
-  (interactive (vr-point-or-region))
+  (interactive (rh-point-or-region))
   (if (/= start end)
       (progn
         (deactivate-mark)
@@ -3022,7 +3531,7 @@ fields which we need."
 ;; (require 'cache-table)
 
 (defun vr-skewer-eval-print-last-expression-or-region (start end)
-  (interactive (vr-point-or-region))
+  (interactive (rh-point-or-region))
   (if (/= start end)
       (progn
         (deactivate-mark)
@@ -3056,120 +3565,41 @@ fields which we need."
 
 ;; /b/} skewer-mode
 
-;; /b/{ indium
+;; /b/{ nodejs-repl
 
-(use-package indium
+(use-package nodejs-repl
   :config
-  ;; Use major mode highlighter to indicate interactive minor modes
-  (add-to-list 'rm-blacklist " js-interaction")
-
-  ;; (add-to-list 'display-buffer-alist
-  ;;              '("*node process*"
-  ;;                (display-buffer-below-selected)
-  ;;                (inhibit-same-window . t)
-  ;;                (window-height . 0.3)))
-
   (add-to-list 'display-buffer-alist
-               '("*JS Inspector*"
-                 (display-buffer-reuse-mode-window
-                  display-buffer-below-selected)))
-
-  (add-to-list 'display-buffer-alist
-               '("*node process*"
-                 (display-buffer-use-some-window
+               '("*nodejs*"
+                 (display-buffer-reuse-window
+                  display-buffer-use-some-window
                   display-buffer-pop-up-window)
                  (inhibit-same-window . t)))
 
-;;   (defun indium-run-node (command)
-;;     "Start a NodeJS process.
+  (add-to-list 'rm-blacklist " NodeJS Interaction")
 
-;; Execute COMMAND, adding the `--inspect' flag.  When the process
-;; is ready, open an Indium connection on it.
+  (require 'config-nodejs-repl)
+  (require 'company)
 
-;; If `indium-nodejs-inspect-brk' is set to non-nil, break the
-;; execution at the first statement.
+  (add-hook
+   'nodejs-repl-mode-hook
+   (lambda ()
+     (company-mode 1)))
 
-;; If a connection is already open, close it."
-;;     (interactive (list (read-shell-command "Node command: "
-;;                                            (or (car indium-nodejs-commands-history) "node ")
-;;                                            'indium-nodejs-commands-history)))
-;;     (indium-maybe-quit)
-;;     (unless indium-current-connection
-;;       (let ((process (make-process :name "indium-nodejs-process"
-;; 				   :buffer "*node process*"
-;; 				   :filter #'indium-nodejs--process-filter
-;; 				   :command (list shell-file-name
-;; 						  shell-command-switch
-;; 						  (indium-nodejs--add-flags command)))))
-;;         (select-window (display-buffer (process-buffer process))))))
-
-  (defun rh-indium-eval-print-region (start end)
-    "Evaluate the region between START and END; and print result below region."
-    (interactive "r")
-    (if (use-region-p)
-        (indium-eval
-         (buffer-substring-no-properties start end)
-         `(lambda (value _error)
-            (let ((result (indium-render-value-to-string value)))
-              (save-excursion
-                (goto-char ,(if (< start end) end start))
-                (when (> (current-column) 0) (next-line))
-                (move-beginning-of-line 1)
-                (newline)
-                (previous-line)
-                (insert (substring-no-properties result))))))
-      (message "No active region to evaluate")))
-
-  (defun rh-indium-eval-region (start end)
-    "Evaluate the region between START and END; and print result in the echo
-area."
-    (interactive "r")
-    (if (use-region-p)
-        (indium-eval
-         (buffer-substring-no-properties start end)
-         (lambda (value _error)
-           (let ((result (indium-render-value-to-string value)))
-             (message result))))
-      (message "No active region to evaluate")))
-
-  (defun rh-indium-interaction-and-run ()
-    (interactive)
-    (indium-interaction-mode 1)
-    (select-window (display-buffer
-                    (temp-buffer-window-setup "*node process*")))
-    (indium-run-node "node"))
-
-  (defun rh-indium-repl-quit-and-clean ()
-    (interactive)
-    (let ((process (indium-current-connection-process)))
-      (when process
-        (set-process-sentinel
-         process
-         (lambda (process event)
-           (when (string-match-p "killed" event)
-             (kill-buffer "*node process*")
-             (kill-buffer "*indium-fontification*"))))
-        (indium-quit)
-        (indium-interaction-mode -1))))
-
-  (defun indium-inspector-quit-window ()
-    (interactive)
-    (quit-window t))
-
-  :bind (:map indium-inspector-mode-map
-         ("<backspace>" . indium-inspector-pop)
-         ("q" . 'indium-inspector-quit-window)
-         :map indium-repl-mode-map
-         ("C-<kp-up>" . indium-repl-previous-input)
-         ("C-<kp-down>" . indium-repl-next-input)
-         ("C-c C-q" . rh-indium-repl-quit-and-clean)
-         :map indium-interaction-mode-hook
-         ("<f5>" . rh-indium-eval-region)
-         ("M-<f5>" . rh-indium-eval-print-region))
+  :bind (:map nodejs-repl-mode-map
+         ("TAB" . #'company-complete))
   :defer t
   :ensure t)
 
-;; /b/} indium
+;; /b/} nodejs-repl
+
+;; /b/{ rh-scratch-js
+
+(use-package rh-scratch-js
+  :commands rh-scratch-js
+  :pin manual)
+
+;; /b/} rh-scratch-js
 
 ;; /b/{ css-mode
 
@@ -3179,9 +3609,10 @@ area."
   (require 'env-css)
   (setq css-indent-offset 2)
   (add-hook
-   'css-mode-hook (lambda ()
-                    (rh-programming-minor-modes 1)
-                    (rh-project-setup)))
+   'css-mode-hook
+   (lambda ()
+     (rh-programming-minor-modes 1)
+     (rh-project-setup)))
   :ensure t)
 
 ;; /b/} css-mode
@@ -3210,7 +3641,7 @@ area."
 
 (use-package lisp-mode
   :delight
-  (emacs-lisp-mode "ξ")
+  (emacs-lisp-mode "ξλ")
   (lisp-interaction-mode "ξλ")
 
   :config
@@ -3223,7 +3654,7 @@ area."
       (eval-last-sexp current-prefix-arg)))
 
   (define-key lisp-mode-shared-map (kbd "<f5>") 'rh-lisp-eval-region-or-last-sexp)
-  (define-key lisp-mode-shared-map (kbd "M-<f5>") 'eval-print-last-sexp)
+  (define-key lisp-mode-shared-map (kbd "C-<f5>") 'eval-print-last-sexp)
   (define-key lisp-mode-shared-map (kbd "S-<f5>") 'rh-ielm-split-window)
 
   (add-hook
@@ -3231,6 +3662,7 @@ area."
    (lambda ()
      (rh-programming-minor-modes 1)
      (eldoc-mode 1)
+     (auto-complete-mode 1)
      (set (make-local-variable 'vr-elisp-mode) t)))
 
   :after ielm
@@ -3265,6 +3697,22 @@ area."
 
 ;; /b/} python-mode
 
+;; /b/{ bazel-mode
+
+(use-package bazel-mode
+  :mode "\\.bazel\\'\\|\\.bzl\\'\\|WORKSPACE\\'"
+  :config
+  (setq python-indent-offset 2)
+
+  (add-hook
+   'bazel-mode-hook
+   (lambda ()
+     (rh-programming-minor-modes 1)))
+
+  :ensure t)
+
+;; /b/} bazel-mode
+
 ;; /b/{ visual-basic-mode
 
 (autoload 'visual-basic-mode "visual-basic-mode" "Visual Basic mode." t)
@@ -3287,7 +3735,6 @@ area."
 ;;     (nxml-backward-element arg)))
 
 (defun rh-nxml-code-folding-setup ()
-  (require 'sgml-mode)
   ;; see http://emacs.stackexchange.com/questions/2884/the-old-how-to-fold-xml-question
   ;; see http://www.emacswiki.org/emacs/HideShow
   (add-to-list 'hs-special-modes-alist
@@ -3313,6 +3760,8 @@ area."
   ;; :mode "\\.xml\\'\\|\\.html\\'\\|\\.htm\\'"
   :mode "\\.xml\\'"
   :config
+  (require 'sgml-mode)
+
   (add-hook
    'nxml-mode-hook
    (lambda ()
@@ -3432,7 +3881,7 @@ area."
 
 (use-package web-mode
   ;; :mode "\\.html\\'\\|\\.mako\\'\\|\\.json\\'\\|\\.tsx\\'"
-  :mode "\\.html\\'\\|\\.mako\\'\\|\\.tsx\\'"
+  :mode "\\.html\\'\\|\\.mako\\'\\|\\.tsx\\'\\|\\.jsx\\'"
   :config
   (add-to-list
    'web-mode-ac-sources-alist
@@ -3529,14 +3978,59 @@ area."
 
 (use-package tide
   :delight (tide-mode " τ")
-  :config (require 'init-tide) (rh-config-tide)
+  :config
+  (require 'config-tide)
+
+  (add-to-list 'display-buffer-alist
+               `("*tide-references*"
+                 ,(g2w-display #'display-buffer-below-selected t)
+                 (inhibit-same-window . t)
+                 (window-height . shrink-window-if-larger-than-buffer)))
+
+  ;; (add-to-list 'display-buffer-alist
+  ;;              `((lambda (buffer-nm actions)
+  ;;                  (when (and (char-or-string-p buffer-nm)
+  ;;                             (string= buffer-nm "*tide-documentation*"))
+  ;;                    (with-current-buffer buffer-nm
+  ;;                      (local-set-key (kbd "q") #'g2w-quit-window))
+  ;;                    t))
+  ;;                ,(g2w-display #'display-buffer-in-side-window t)
+  ;;                (inhibit-same-window . t)
+  ;;                (window-height . 15)))
+
+  (add-to-list
+   'display-buffer-alist
+   '("*tide-documentation*"
+     (display-buffer-reuse-window
+      display-buffer-use-some-window
+      display-buffer-pop-up-window)
+     (inhibit-same-window . t)))
+
+  (add-to-list 'display-buffer-alist
+               `((lambda (buffer-nm actions)
+                   (with-current-buffer buffer-nm
+                     (eq major-mode 'tide-project-errors-mode)))
+                 ,(g2w-display #'display-buffer-below-selected)
+                 (inhibit-same-window . t)
+                 ;; (window-height . shrink-window-if-larger-than-buffer)
+                 ))
+
+  (setq tide-completion-ignore-case t)
+  (setq tide-always-show-documentation t)
+
+  ;; (add-hook
+  ;;  'tide-mode-hook
+  ;;  (lambda ()
+  ;;    (set (make-local-variable 'rh-company-display-permanent-doc-buffer)
+  ;;         #'rh-tide-company-display-permanent-doc-buffer)))
+
   :bind (:map tide-mode-map
          ("M-." . tide-jump-to-definition)
          ("M-/" . tide-jump-to-implementation)
          ("M-," . tide-references)
          ("M-[" . tide-jump-back)
          ("M-h" . tide-documentation-at-point)
-         ("C-x M-h" . rh-tide-documentation-quit)
+         ;; ("C-x M-h" . rh-tide-documentation-quit)
          :map tide-references-mode-map
          ("q" . rh-quit-window-kill)
          ;; :map tide-project-errors-mode-map
@@ -3564,6 +4058,15 @@ area."
   (eldoc-mode 1)
   (tide-hl-identifier-mode 1))
 
+(defun rh-setup-javascript-tern ()
+  (interactive)
+  (tern-mode 1))
+
+(defun rh-setup-javascript-tern-tide ()
+  (interactive)
+  (tern-mode 1)
+  (rh-setup-javascript-tide))
+
 ;; /b/} JavaScript Environments Setup
 
 ;;; Programming Languages (Compilers, Debuggers, Profilers etc.)
@@ -3572,6 +4075,18 @@ area."
 ;; -------------------------------------------------------------------
 ;;; Structured Text and Markup (Meta) Languages
 ;; -------------------------------------------------------------------
+
+;; /b/{ markdown-mode
+
+(use-package markdown-mode
+  :mode (("README\\.md\\'" . gfm-mode)
+         ("\\.md\\'" . markdown-mode)
+         ("\\.markdown\\'" . markdown-mode))
+  :commands (markdown-mode gfm-mode)
+  :init (setq markdown-command "multimarkdown")
+  :ensure t)
+
+;; /b/} markdown-mode
 
 ;; == Org mode ==
 
@@ -3854,9 +4369,7 @@ with very limited support for special characters."
                           "^\\*httpd\\*$"
                           ;; tide
                           "^\\*tide-server\\*.*$"
-                          ;; node.js/indium
                           "^\\*node process\\*$"
-                          "^\\*indium-fontification\\*$"
                           ;; compile/script outputs
                           "^\\*skewer-error\\*$"
                           "^\\*tide-server\\*$"
@@ -4021,16 +4534,16 @@ with very limited support for special characters."
 ;; /b/{ bm
 
 (use-package bm
-  :init
-  ;; restore on load (even before you require bm)
-  (defvar bm-restore-repository-on-load t)
-
-  ;; where to store persistant files
-  (setq bm-repository-file rh-bm-repository-file-path)
+  ;; :init
+  ;; ;; restore on load (even before you require bm)
+  ;; (defvar bm-restore-repository-on-load t)
 
   :config
   ;; Allow cross-buffer 'next'
   ;; (setq bm-cycle-all-buffers t)
+
+  ;; where to store persistant files
+  (setq bm-repository-file rh-bm-repository-file-path)
 
   ;; Only highlight the fringe of the line
   (setq bm-highlight-style 'bm-highlight-only-fringe)
@@ -4078,6 +4591,7 @@ with very limited support for special characters."
   :bind (("<f2>" . bm-next)
          ("S-<f2>" . bm-previous)
          ("C-<f2>" . bm-toggle))
+  :demand t
   :ensure t)
 
 ;; /b/} bm

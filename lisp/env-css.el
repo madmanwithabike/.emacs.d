@@ -1,4 +1,4 @@
-;;; envr-css.el --- ramblehead's css environments
+;;; ramblehead's css environments
 
 (defun rh-css-skewer-clear-all ()
   (interactive)

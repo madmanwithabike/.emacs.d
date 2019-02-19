@@ -99,6 +99,13 @@
 ;;           (back-to-indentation)
 ;;           `[,(current-column)])))))
 
+(defun rh-c++-looking-at-multiline_arg (langelem)
+  (back-to-indentation)
+  (save-match-data
+    (c-backward-syntactic-ws)
+    (left-char)
+    (when (not (looking-at ",")) t)))
+
 (defun rh-c++-looking-at-uniform_init_block_closing_brace_line (langelem)
   "Return t if cursor if looking at C++11 uniform init block T v {xxx}
 closing brace"
@@ -138,8 +145,15 @@ continuing (not first) item"
   (and (equal major-mode 'c++-mode)
        (ignore-errors
          (save-excursion
-           (when langelem
-             (goto-char (c-langelem-pos langelem)))
+           (funcall looking-at-p langelem)))))
+
+(defun rh-c-style-examine-at-langelem (langelem looking-at-p)
+  (and (equal major-mode 'c++-mode)
+       (ignore-errors
+         (save-excursion
+           ;; (when langelem
+           ;;   (goto-char (c-langelem-pos langelem)))
+           (goto-char (c-langelem-pos langelem))
            (funcall looking-at-p langelem)))))
 
 ;; Adapted from google-c-lineup-expression-plus-4
@@ -172,19 +186,28 @@ continuing (not first) item"
   (c-set-offset 'inher-intro '++)
   (c-set-offset 'member-init-intro '++)
 
+  (c-set-offset
+   'arglist-cont
+   (lambda (langelem)
+     (cond
+      ((rh-c-style-examine
+        langelem
+        #'rh-c++-looking-at-multiline_arg)
+       '+))))
+
   ;; (c-set-offset
   ;;  'arglist-cont
   ;;  (lambda (langelem)
   ;;    (cond
-  ;;     ;; ((rh-c-style-examine
+  ;;     ;; ((rh-c-style-examine-at-langelem
   ;;     ;;   langelem
   ;;     ;;   #'rh-c++-looking-at-guess-macro-definition)
   ;;     ;;  nil)
-  ;;     ;; ((rh-c-style-examine
+  ;;     ;; ((rh-c-style-examine-at-langelem
   ;;     ;;   langelem
   ;;     ;;   #'rh-c++-looking-at-template)
   ;;     ;;  0)
-  ;;     ;; ((rh-c-style-examine
+  ;;     ;; ((rh-c-style-examine-at-langelem
   ;;     ;;   nil
   ;;     ;;   #'rh-c++-looking-at-bol-namespace-switch)
   ;;     ;;  (rh-c++-get-offset-bol-namespace-switch langelem))
@@ -194,11 +217,11 @@ continuing (not first) item"
    'topmost-intro-cont
    (lambda (langelem)
      (cond
-      ((rh-c-style-examine
+      ((rh-c-style-examine-at-langelem
         langelem
         #'rh-c++-looking-at-guess-macro-definition)
        nil)
-      ((rh-c-style-examine
+      ((rh-c-style-examine-at-langelem
         langelem
         #'rh-c++-looking-at-template)
        0)
@@ -209,7 +232,7 @@ continuing (not first) item"
   ;; (c-set-offset
   ;;  'topmost-intro-cont
   ;;  (lambda (langelem)
-  ;;    (if (rh-c-style-examine
+  ;;    (if (rh-c-style-examine-at-langelem
   ;;         langelem
   ;;         #'rh-c++-looking-at-guess-macro-definition)
   ;;        nil
@@ -219,7 +242,7 @@ continuing (not first) item"
   ;;  'topmost-intro-cont
   ;;  (lambda (langelem)
   ;;    (message "%s" langelem)
-  ;;    (if (rh-c-style-examine
+  ;;    (if (rh-c-style-examine-at-langelem
   ;;         langelem
   ;;         #'rh-c++-looking-at-template)
   ;;        nil
@@ -228,7 +251,7 @@ continuing (not first) item"
   ;; (c-set-offset
   ;;  'inher-intro
   ;;  (lambda (langelem)
-  ;;    (if (rh-c-style-examine
+  ;;    (if (rh-c-style-examine-at-langelem
   ;;         langelem
   ;;         #'rh-c++-looking-at-class_in_namespace)
   ;;        '++
@@ -238,19 +261,19 @@ continuing (not first) item"
    'statement-cont
    (lambda (langelem)
      (cond
-      ((rh-c-style-examine
+      ((rh-c-style-examine-at-langelem
         langelem
         #'rh-c++-looking-at-return)
        (rh-c++-get-offset-return langelem))
-      ((rh-c-style-examine
+      ((rh-c-style-examine-at-langelem
         nil
         #'rh-c++-looking-at-uniform_init_block_closing_brace_line)
        '-)
-      ((rh-c-style-examine
+      ((rh-c-style-examine-at-langelem
         nil
         #'rh-c++-looking-at-uniform_init_block_cont_item)
        0)
-      ((rh-c-style-examine
+      ((rh-c-style-examine-at-langelem
         nil
         #'rh-c++-looking-at-bol-namespace-switch)
        (rh-c++-get-offset-bol-namespace-switch langelem))
@@ -287,7 +310,7 @@ continuing (not first) item"
   ;; (c-set-offset
   ;;  'statement-block-intro
   ;;  (lambda (langelem)
-  ;;    (if (rh-c-style-examine
+  ;;    (if (rh-c-style-examine-at-langelem
   ;;         langelem
   ;;         #'rh-c++-looking-at-lambda_in_uniform_init)
   ;;        0
@@ -299,7 +322,7 @@ continuing (not first) item"
   ;;                              activate)
   ;;   "Improve indentation of continued C++11 lambda function opened as argument."
   ;;   (setq ad-return-value
-  ;;         (if (rh-c-style-examine
+  ;;         (if (rh-c-style-examine-at-langelem
   ;;              _langelem
   ;;              #'rh-c++-looking-at-lambda_as_param)
   ;;             0
