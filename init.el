@@ -3047,14 +3047,15 @@ fields which we need."
   ;; If following symbol without completion buffer, do it in the same window
   (add-to-list 'display-buffer-alist
                '((lambda (buffer-nm actions)
-                   (with-current-buffer buffer-nm
-                     (and (not (string= buffer-nm "*RTags*"))
-                          (not (boundp 'g2w-destination-window))
-                          (memq this-command
-                                '(rtags-find-symbol-at-point
-                                  rtags-find-references-at-point
-                                  rtags-find-virtuals-at-point
-                                  rtags-references-tree)))))
+                   (unless (string= (buffer-name) "*RTags*")
+                     (with-current-buffer buffer-nm
+                       (and (memq this-command
+                                  '(rtags-find-symbol-at-point
+                                    rtags-find-references-at-point
+                                    rtags-find-virtuals-at-point
+                                    rtags-references-tree))
+                            (not (boundp 'g2w-destination-window))
+                            (not (string= buffer-nm "*RTags*"))))))
                  (display-buffer-same-window)))
 
   (add-to-list 'display-buffer-alist
@@ -3700,14 +3701,15 @@ fields which we need."
 ;; /b/{ bazel-mode
 
 (use-package bazel-mode
-  :mode "\\.bazel\\'\\|\\.bzl\\'\\|WORKSPACE\\'"
+  :mode "\\.bazel\\'\\|\\.bzl\\'\\|WORKSPACE\\'\\|\\.?BUILD\\'"
   :config
   (setq python-indent-offset 2)
 
   (add-hook
    'bazel-mode-hook
    (lambda ()
-     (rh-programming-minor-modes 1)))
+     (rh-programming-minor-modes 1)
+     (rh-project-setup)))
 
   :ensure t)
 
