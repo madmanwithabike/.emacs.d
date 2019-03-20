@@ -3129,6 +3129,13 @@ fields which we need."
    (lambda ()
      (set (make-local-variable 'truncate-lines) t)))
 
+  (add-hook
+   'after-save-hook
+   (lambda ()
+     ;; TODO: file an issue to rtags GitHub about this bug
+     (when rtags-enabled
+       (rtags-reparse-file))))
+
   (rtags-enable-standard-keybindings)
   ;; (define-key c-mode-base-map (kbd "C-c r d") 'rh-rtags-toggle-rdm-display)
   ;; (define-key c-mode-base-map (kbd "M-[") 'rtags-location-stack-back)
@@ -3310,7 +3317,6 @@ fields which we need."
 
   :bind (:map c-mode-base-map
          ("C-S-b" . recompile)
-         :map c-mode-base-map
          ("C-c b" . rh-compile-toggle-display))
 
   :defer t)
@@ -3438,7 +3444,9 @@ fields which we need."
          (";" . nil)
          ("," . nil)
          ("\"" . nil)
-         ("'" . nil))
+         ("'" . nil)
+         ("C-S-b" . recompile)
+         ("C-c b" . rh-compile-toggle-display))
   :defer t
   :ensure t)
 

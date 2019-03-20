@@ -104,7 +104,8 @@
   (save-match-data
     (c-backward-syntactic-ws)
     (left-char)
-    (when (not (looking-at ",")) t)))
+    (and (not (looking-at ","))
+         (not (looking-at "\"")))))
 
 (defun rh-c++-looking-at-uniform_init_block_closing_brace_line (langelem)
   "Return t if cursor if looking at C++11 uniform init block T v {xxx}
