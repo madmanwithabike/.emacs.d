@@ -17,7 +17,7 @@
  '(longlines-show-hard-newlines t)
  '(make-backup-files nil)
  '(package-selected-packages
-   '(bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
+   '(ts-comint lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
  '(pop-up-windows nil)
  '(preview-scale-function 1.8)
  '(safe-local-variable-values '((eval progn (linum-mode -1) (nlinum-mode 1))))
@@ -937,6 +937,7 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
     ;; see https://github.com/shosti/.emacs.d/blob/master/personal/p-display.el#L9
     (set-fontset-font t (decode-char 'ucs #x2d5b) "Noto Sans Tifinagh-9") ; ⵛ
     (set-fontset-font t (decode-char 'ucs #x2d59) "Noto Sans Tifinagh-9") ; ⵙ
+    (set-fontset-font t (decode-char 'ucs #x2605) "Noto Sans Mono CJK SC-8") ; ★
     (set-fontset-font t (decode-char 'ucs #x2b6f) "Symbola-8.5") ; ⭯
     (set-fontset-font t (decode-char 'ucs #x2b73) "Symbola-8.5") ; ⭳
     (set-fontset-font t (decode-char 'ucs #x1f806) "Symbola-8.5") ; 🠆
@@ -1348,14 +1349,6 @@ Also sets SYMBOL to VALUE."
 
 (use-package help-mode
   :config
-  ;; (add-to-list
-  ;;  'display-buffer-alist
-  ;;  '("*Help*"
-  ;;    (rh-display-buffer-reuse-right
-  ;;     rh-display-buffer-reuse-left
-  ;;     rh-display-buffer-reuse-down
-  ;;     rh-display-buffer-reuse-up)))
-
   (add-to-list
    'display-buffer-alist
    '("*Help*"
@@ -1385,8 +1378,13 @@ Also sets SYMBOL to VALUE."
       display-buffer-pop-up-window)
      (inhibit-same-window . t)))
 
-  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
-  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compilation-display-error)
+  (add-to-list
+   'g2w-display-buffer-reuse-window-commands
+   'compile-goto-error)
+
+  (add-to-list
+   'g2w-display-buffer-reuse-window-commands
+   'compilation-display-error)
 
   (add-hook
    'grep-mode-hook
@@ -2005,7 +2003,9 @@ fields which we need."
 
   ;; (add-to-list 'g2w-display-buffer-reuse-window-commands 'ivy-occur-press-and-switch)
   (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
-  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compilation-display-error)
+  (add-to-list
+   'g2w-display-buffer-reuse-window-commands
+   'compilation-display-error)
 
   ;; (defadvice ivy-occur-press-and-switch
   ;;     (after rh-ivy-occur-press-and-switch activate)
@@ -2017,6 +2017,7 @@ fields which we need."
   ;;   (next-error 0))
 
   (setq ivy-use-virtual-buffers t)
+  (setq ivy-virtual-abbreviate 'abbreviate)
   (setq ivy-count-format "%d/%d ")
   (setq ivy-height 8)
 
@@ -2095,8 +2096,8 @@ fields which we need."
     (interactive)
     (rh-counsel-ag-deduce ""))
 
-  :bind (("C-c s" . 'rh-counsel-ag)
-         ("C-c S" . 'rh-counsel-ag-deduce)
+  :bind (("C-c s" . rh-counsel-ag)
+         ("C-c S" . rh-counsel-ag-deduce)
          :map counsel-mode-map
          ("M-y" . rh-counsel-yank-pop))
 
@@ -2104,8 +2105,17 @@ fields which we need."
   :ensure t)
 
 (use-package lacarte
-  :bind ("<menu>" . lacarte-execute-menu-command)
   :demand t)
+
+(use-package ivy-rich
+  :config
+  (setq ivy-format-function #'ivy-format-function-line)
+  (setq ivy-rich-path-style 'abbrev)
+
+  (ivy-rich-mode 1)
+
+  :demand t
+  :ensure t)
 
 ;; /b/} ivy/swiper/counsel/etc.
 
@@ -2258,6 +2268,7 @@ fields which we need."
   (setq ac-modes (delq 'c-mode ac-modes))
   (setq ac-modes (delq 'js-jsx-mode ac-modes))
   (setq ac-modes (delq 'js2-jsx-mode ac-modes))
+  (setq ac-modes (delq 'python-mode ac-modes))
 
   (ac-config-default)
 
@@ -2448,6 +2459,9 @@ fields which we need."
   (setq company-require-match nil)
 
   (setq company-idle-delay 0)
+  (setq company-tooltip-maximum-width 80)
+  (setq company-tooltip-minimum-width 35)
+  (setq company-tooltip-offset-display 'lines)
 
   ;; Use "M-h" for company-show-doc-buffer
   (define-key company-active-map (kbd "<f1>") nil)
@@ -2592,6 +2606,30 @@ fields which we need."
 ;;   :ensure t)
 
 ;; /b/} flycheck
+
+;; /b/{ dumb-jump
+
+(use-package dumb-jump
+  :config
+  (defhydra dumb-jump-hydra (:color blue :columns 3)
+    "Dumb Jump"
+    ("j" dumb-jump-go "Go")
+    ("o" dumb-jump-go-other-window "Other window")
+    ("e" dumb-jump-go-prefer-external "Go external")
+    ("x" dumb-jump-go-prefer-external-other-window "Go external other window")
+    ("i" dumb-jump-go-prompt "Prompt")
+    ("l" dumb-jump-quick-look "Quick look")
+    ("b" dumb-jump-back "Back"))
+
+  (setq dumb-jump-selector 'ivy)
+
+  :bind (("M-g g" . dumb-jump-hydra/body)
+         ("s-." . dumb-jump-go)
+         ("s-[" . dumb-jump-back))
+  :defer t
+  :ensure t)
+
+;; /b/} dumb-jump
 
 ;; -------------------------------------------------------------------
 ;;; Completion, Regexps, Patterns and Highlighting
@@ -2897,6 +2935,9 @@ fields which we need."
                   display-buffer-pop-up-window)
                  (inhibit-same-window . t)))
 
+  (setq transient-display-buffer-action
+        '(display-buffer-below-selected (side . bottom)))
+
   ;; See https://github.com/magit/magit/issues/2541
   ;; (setq magit-display-buffer-function
   ;;       (lambda (buffer)
@@ -3117,41 +3158,26 @@ fields which we need."
   (add-hook
    'rtags-references-tree-mode-hook
    (lambda ()
-     (set (make-local-variable 'truncate-lines) t)))
-
-  (add-hook
-   'rtags-mode-hook
-   (lambda ()
-     (set (make-local-variable 'truncate-lines) t)))
+     (setq-local 'truncate-lines t)))
 
   (add-hook
    'rtags-diagnostics-mode-hook
    (lambda ()
-     (set (make-local-variable 'truncate-lines) t)))
+     (setq-local truncate-lines t)))
 
   (add-hook
-   'after-save-hook
+   'rtags-mode-hook
    (lambda ()
-     ;; TODO: file an issue to rtags GitHub about this bug
-     (when rtags-enabled
-       (rtags-reparse-file))))
+     (setq-local truncate-lines t)))
+
+  ;; TODO: file an issue to rtags GitHub about bug with
+  ;;       multiple paths in compilation database.
+  (setq rtags-reindex-on-save t)
+  (setq rtags-completions-enabled t)
+
+  (require 'rh-rtags-eldoc)
 
   (rtags-enable-standard-keybindings)
-  ;; (define-key c-mode-base-map (kbd "C-c r d") 'rh-rtags-toggle-rdm-display)
-  ;; (define-key c-mode-base-map (kbd "M-[") 'rtags-location-stack-back)
-  ;; (define-key c-mode-base-map (kbd "M-]") 'rtags-location-stack-forward)
-
-  ;; (define-key c-mode-base-map (kbd "M-.") 'rtags-find-symbol-at-point)
-
-  ;; (define-key c-mode-base-map (kbd "M->") 'rtags-next-match)
-  ;; (define-key c-mode-base-map (kbd "M-<") 'rtags-previous-match)
-  ;; ;; (define-key c-mode-base-map (kbd "M-,") 'rtags-find-references-at-point)
-  ;; (define-key c-mode-base-map (kbd "M-,") 'rtags-references-tree)
-  ;; (define-key c-mode-base-map (kbd "C-M-,") 'rtags-find-virtuals-at-point)
-  ;; (define-key c-mode-base-map (kbd "M-i") 'rtags-imenu)
-  ;; (define-key c-mode-base-map (kbd "C-.") 'rtags-find-symbol)
-  ;; (define-key c-mode-base-map (kbd "C-,") 'rtags-find-references)
-
   (bind-key "C-c r d" #'rh-rtags-toggle-rdm-display c-mode-base-map)
   (bind-key "M-[" #'rtags-location-stack-back c-mode-base-map)
   (bind-key "M-]" #'rtags-location-stack-forward c-mode-base-map)
@@ -3201,6 +3227,7 @@ fields which we need."
   (require 'auto-complete-c-headers)
   (require 'auto-complete-clang)
   (require 'rtags)
+  (require 'rh-cc-mode-config)
 
   (defvar-local rh-c++-compiler "g++")
   (defvar-local rh-c++-std "-std=c++1z")
@@ -3298,11 +3325,13 @@ fields which we need."
      (abbrev-mode -1)
      (rh-programming-minor-modes t)
      (rh-cc-rtags-setup)
+     ;; (rh-rtags-eldoc-setup)
      (rh-c++-indentation-setup)
      (rh-c++-font-lock-setup)
      (rh-c++-yas-setup)
      (rh-cc-compile-setup)
-     (rh-c++-ac-setup)
+     ;; (rh-c++-ac-setup)
+     (rh-cc-company-setup)
      (rh-project-setup)))
 
   (add-hook
@@ -3578,12 +3607,21 @@ fields which we need."
 
 (use-package nodejs-repl
   :config
-  (add-to-list 'display-buffer-alist
-               '("*nodejs*"
-                 (display-buffer-reuse-window
-                  display-buffer-use-some-window
-                  display-buffer-pop-up-window)
-                 (inhibit-same-window . t)))
+  ;; (add-to-list
+  ;;  'display-buffer-alist
+  ;;  '("*nodejs*"
+  ;;    (display-buffer-reuse-window
+  ;;     rh-display-buffer-reuse-right
+  ;;     rh-display-buffer-reuse-left
+  ;;     rh-display-buffer-reuse-down
+  ;;     rh-display-buffer-reuse-up
+  ;;     display-buffer-pop-up-window)))
+
+  (add-to-list
+   'display-buffer-alist
+   '("*nodejs*"
+     (display-buffer-reuse-window
+      display-buffer-same-window)))
 
   (add-to-list 'rm-blacklist " NodeJS Interaction")
 
@@ -3609,6 +3647,13 @@ fields which we need."
   :pin manual)
 
 ;; /b/} rh-scratch-js
+
+;; /b/{ ts-comint
+
+(use-package ts-comint
+  :ensure t)
+
+;; /b/} ts-comint
 
 ;; /b/{ css-mode
 
@@ -3690,19 +3735,34 @@ fields which we need."
   :ensure t
   :demand t)
 
+(use-package lispy
+  :ensure t)
+
 ;; /b/} lisp-mode
 
 ;; /b/{ python-mode
 
 (use-package python
   :mode ("\\.py\\'" . python-mode)
+  :commands (python-repl run-python)
   :config
+  (require 'rh-python-mode-config)
+
+  (add-to-list
+   'display-buffer-alist
+   '("*Python*"
+     (display-buffer-same-window)))
+
   (setq python-indent-offset 2)
+  (setq python-shell-interpreter "python3")
 
   (add-hook
    'python-mode-hook
    (lambda ()
-     (rh-programming-minor-modes 1))))
+     (rh-programming-minor-modes 1)
+     (rh-python-company-setup)))
+
+  :defer t)
 
 ;; /b/} python-mode
 

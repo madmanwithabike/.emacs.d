@@ -1,6 +1,6 @@
 ;;; ramblehead's nodejs-repl configuration
 
-(defvar rh-nodejs-interaction-map
+(defvar rh-nodejs-repl-interaction-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "<f5>") #'rh-nodejs-repl-send-line-or-region)
     map))
@@ -8,8 +8,8 @@
 (define-minor-mode rh-nodejs-repl-interaction
   "Minor mode for interacting with a nodejs from other (e.g js) buffers."
   :lighter " NodeJS Interaction"
-  :keymap rh-nodejs-interaction-map
-  (when rh-nodejs-interaction
+  :keymap rh-nodejs-repl-interaction-map
+  (when rh-nodejs-repl-interaction
     (let ((win (selected-window)))
       (nodejs-repl-switch-to-repl)
       (select-window win))))
@@ -37,7 +37,7 @@
 ;; (defun nodejs-repl--completion-at-point-function ()
 ;;   (setq nodejs-repl-completion-at-point-called-p t)
 ;;   (when (or (comint-after-pmark-p)
-;;             rh-nodejs-interaction)
+;;             rh-nodejs-repl-interaction)
 ;;     (let* ((input (buffer-substring (comint-line-beginning-position) (point)))
 ;;            require-arg
 ;;            token-length
