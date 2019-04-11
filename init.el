@@ -968,6 +968,9 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
   ;; (color-theme-sanityinc-tomorrow-blue)
   ;; (load-theme 'sanityinc-tomorrow-blue t)
 
+  ;; (customize-set-variable 'find-file-visit-truename t)
+  (customize-set-value 'find-file-visit-truename t)
+
   (column-number-mode 1)
   (size-indication-mode -1)
 
@@ -2111,6 +2114,41 @@ fields which we need."
   :config
   (setq ivy-format-function #'ivy-format-function-line)
   (setq ivy-rich-path-style 'abbrev)
+
+  ;; (defun rh-ivy-rich-switch-buffer-path (candidate)
+  ;;   (let ((result (ivy-rich-switch-buffer-path candidate)))
+  ;;     (if (string-empty-p result)
+  ;;         (propertize
+  ;;          (ivy-rich-switch-buffer-major-mode candidate)
+  ;;          'face 'shadow)
+  ;;       (concat result " " (propertize
+  ;;                           (ivy-rich-switch-buffer-major-mode candidate)
+  ;;                           'face 'shadow)))))
+
+  ;; (plist-put
+  ;;  ivy-rich-display-transformers-list
+  ;;  'ivy-switch-buffer
+  ;;  '(:columns
+  ;;    ((ivy-rich-candidate (:width 30))
+  ;;     (rh-ivy-rich-switch-buffer-path
+  ;;      (:width
+  ;;       (lambda (path)
+  ;;         (ivy-rich-switch-buffer-shorten-path
+  ;;          path (- (ivy-rich-minibuffer-width 1.0) 30))))))
+  ;;    :predicate
+  ;;    (lambda (cand)
+  ;;      (get-buffer cand))))
+
+  (plist-put
+   ivy-rich-display-transformers-list
+   'ivy-switch-buffer
+   '(:columns
+     ((ivy-rich-candidate (:width 30))
+      (ivy-rich-switch-buffer-major-mode (:width 20 :face shadow))
+      (ivy-rich-switch-buffer-path))
+     :predicate
+     (lambda (cand)
+       (get-buffer cand))))
 
   (ivy-rich-mode 1)
 
