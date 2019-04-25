@@ -17,7 +17,7 @@
  '(longlines-show-hard-newlines t)
  '(make-backup-files nil)
  '(package-selected-packages
-   '(lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
+   '(scss-mode lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
  '(pop-up-windows nil)
  '(preview-scale-function 1.8)
  '(safe-local-variable-values '((eval progn (linum-mode -1) (nlinum-mode 1))))
@@ -225,18 +225,16 @@
 ;; == Convenience interactive functions ==
 
 ;; My adaptation of the native emacs function balance-windows
-(defun vr-balance-windows-horizontally (&optional window-or-frame)
+(defun rh-balance-windows-horizontally (&optional window-or-frame)
   (interactive)
-  (let* ((window
-          (cond
-           ((or (not window-or-frame)
-                (frame-live-p window-or-frame))
-            (frame-root-window window-or-frame))
-           ((or (window-live-p window-or-frame)
-                (window-child window-or-frame))
-            window-or-frame)
-           (t
-            (error "Not a window or frame %s" window-or-frame))))
+  (let* ((window (cond
+                  ((or (not window-or-frame)
+                       (frame-live-p window-or-frame))
+                   (frame-root-window window-or-frame))
+                  ((or (window-live-p window-or-frame)
+                       (window-child window-or-frame))
+                   window-or-frame)
+                  (t (error "Not a window or frame %s" window-or-frame))))
          (frame (window-frame window)))
     ;; Balance horizontally.
     (window--resize-reset (window-frame window) t)
@@ -247,18 +245,16 @@
       (run-window-configuration-change-hook frame))))
 
 ;; My adaptation of the native emacs function balance-windows
-(defun vr-balance-windows-vertically (&optional window-or-frame)
+(defun rh-balance-windows-vertically (&optional window-or-frame)
   (interactive)
-  (let* ((window
-          (cond
-           ((or (not window-or-frame)
-                (frame-live-p window-or-frame))
-            (frame-root-window window-or-frame))
-           ((or (window-live-p window-or-frame)
-                (window-child window-or-frame))
-            window-or-frame)
-           (t
-            (error "Not a window or frame %s" window-or-frame))))
+  (let* ((window (cond
+                  ((or (not window-or-frame)
+                       (frame-live-p window-or-frame))
+                   (frame-root-window window-or-frame))
+                  ((or (window-live-p window-or-frame)
+                       (window-child window-or-frame))
+                   window-or-frame)
+                  (t (error "Not a window or frame %s" window-or-frame))))
          (frame (window-frame window)))
     ;; Balance vertically.
     (window--resize-reset (window-frame window))
@@ -1030,10 +1026,10 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
          ("M-s-<kp-left>" . shrink-window-horizontally)
          ("M-s-<right>" . enlarge-window-horizontally)
          ("M-s-<kp-right>" . enlarge-window-horizontally)
-         ("M-s-<kp-begin>" . vr-balance-windows-horizontally)
-         ("S-M-s-<kp-begin>" . vr-balance-windows-vertically)
-         ("M-s-'" . vr-balance-windows-horizontally)
-         ("M-s-\"" . vr-balance-windows-vertically)
+         ("M-s-<kp-begin>" . rh-balance-windows-horizontally)
+         ("S-M-s-<kp-begin>" . rh-balance-windows-vertically)
+         ("M-s-'" . rh-balance-windows-horizontally)
+         ("M-s-\"" . rh-balance-windows-vertically)
          ;; Move point between windows
          ;; see http://stackoverflow.com/questions/91071/emacs-switch-to-previous-window
          ("C-x <up>" . windmove-up)
@@ -1157,6 +1153,18 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
   :ensure t)
 
 (use-package rich-minority
+  :config
+
+  (defun rh-rm-minor-modes ()
+    (interactive)
+    (message
+     (substring-no-properties
+      (mapconcat
+       (lambda (pair)
+         (format "%s (%S)" (string-trim-left (car pair)) (cdr pair)))
+       (delq nil (mapcar #'rm-format-mode-line-entry minor-mode-alist))
+       "\n"))))
+
   :demand t
   :ensure t)
 
@@ -1364,6 +1372,20 @@ Also sets SYMBOL to VALUE."
 
   (setq help-window-select t)
   ;; (define-key help-mode-map (kbd "q") #'g2w-quit-window)
+
+  :defer t)
+
+(use-package apropos
+  :config
+  (add-to-list
+   'display-buffer-alist
+   '("*Apropos*"
+     (display-buffer-reuse-window
+      rh-display-buffer-reuse-right
+      rh-display-buffer-reuse-left
+      rh-display-buffer-reuse-down
+      rh-display-buffer-reuse-up
+      display-buffer-pop-up-window)))
 
   :defer t)
 
@@ -2307,6 +2329,7 @@ fields which we need."
   (setq ac-modes (delq 'js-jsx-mode ac-modes))
   (setq ac-modes (delq 'js2-jsx-mode ac-modes))
   (setq ac-modes (delq 'python-mode ac-modes))
+  (setq ac-modes (delq 'scss-mode ac-modes))
 
   (ac-config-default)
 
@@ -3425,7 +3448,7 @@ fields which we need."
      (rh-project-setup)))
 
   :bind (:map js-mode-map
-         ("<f7>" . #'rh-nodejs-interaction))
+         ("<f7>" . rh-nodejs-interaction))
   :defer t)
 
 ;; /b/} js-mode
@@ -3435,14 +3458,14 @@ fields which we need."
 (use-package js2-mode
   :mode "\\.js\\'"
   :interpreter "node"
-  ;; "λ" stands for interactive and "n" for nodejs-repl
-  :delight '((:eval (if (bound-and-true-p rh-nodejs-interaction)
+  ;; "λ" stands for interactive and "n" for Node.JS
+  :delight '((:eval (if (bound-and-true-p inter-node-mode)
                         "js2λn"
                       "js2"))
              :major)
   :config
   (require 'config-js2-mode)
-  (require 'nodejs-repl)
+  ;; (require 'nodejs-repl)
   (require 'company)
 
   ;; Indentation style ajustments
@@ -3454,7 +3477,12 @@ fields which we need."
   (add-hook
    'js2-mode-hook
    (lambda ()
-     ;; (add-hook 'xref-backend-functions #'xref-js2-xref-backend nil t)
+     (setq-local rm-blacklist (seq-copy rm-blacklist))
+     (add-to-list 'rm-blacklist " inter-node")
+
+     (setq-local company-backends
+                 '((company-keywords company-dabbrev-code)
+                   company-files (company-dabbrev company-ispell)))
      (company-mode 1)))
 
   :ensure t)
@@ -3463,25 +3491,6 @@ fields which we need."
 ;;   :mode "\\.jsx\\'")
 
 ;; /b/} js2-mode
-
-;; /b/{ xref-js2
-
-;; (use-package xref-js2
-;;   :config
-;;   ;; (setq xref-js2-ignored-dirs (delete "node_modules" xref-js2-ignored-dirs))
-;;   (setq xref-js2-ignored-dirs '("build"))
-;;   (add-to-list 'xref-js2-ag-arguments "-t")
-
-;;   (defadvice xref-js2--root-dir (around rh-xref-js2--root-dir activate)
-;;     (setq ad-return-value
-;;           (or (let ((proj-root (rh-project-get-root)))
-;;                 (and proj-root
-;;                      (expand-file-name proj-root)))
-;;               ad-do-it)))
-
-;;   :ensure t)
-
-;; /b/} xref-js2
 
 ;; /b/{ js2-refactor
 
@@ -3645,41 +3654,41 @@ fields which we need."
 
 ;; /b/{ nodejs-repl
 
-(use-package nodejs-repl
-  :config
-  (add-to-list 'rm-blacklist " NodeJS Interaction")
+;; (use-package nodejs-repl
+;;   :config
+;;   (add-to-list 'rm-blacklist " NodeJS Interaction")
 
-  (setenv "NODE_NO_READLINE" "1")
-  (setenv "NODE_DISABLE_COLORS" "1")
+;;   (setenv "NODE_NO_READLINE" "1")
+;;   (setenv "NODE_DISABLE_COLORS" "1")
 
-  ;; (add-to-list
-  ;;  'display-buffer-alist
-  ;;  '("*nodejs*"
-  ;;    (display-buffer-reuse-window
-  ;;     rh-display-buffer-reuse-right
-  ;;     rh-display-buffer-reuse-left
-  ;;     rh-display-buffer-reuse-down
-  ;;     rh-display-buffer-reuse-up
-  ;;     display-buffer-pop-up-window)))
+;;   ;; (add-to-list
+;;   ;;  'display-buffer-alist
+;;   ;;  '("*nodejs*"
+;;   ;;    (display-buffer-reuse-window
+;;   ;;     rh-display-buffer-reuse-right
+;;   ;;     rh-display-buffer-reuse-left
+;;   ;;     rh-display-buffer-reuse-down
+;;   ;;     rh-display-buffer-reuse-up
+;;   ;;     display-buffer-pop-up-window)))
 
-  (add-to-list
-   'display-buffer-alist
-   '("*nodejs*"
-     (display-buffer-reuse-window
-      display-buffer-same-window)))
+;;   (add-to-list
+;;    'display-buffer-alist
+;;    '("*nodejs*"
+;;      (display-buffer-reuse-window
+;;       display-buffer-same-window)))
 
-  (require 'config-nodejs-repl)
-  (require 'company)
+;;   (require 'config-nodejs-repl)
+;;   (require 'company)
 
-  (add-hook
-   'nodejs-repl-mode-hook
-   (lambda ()
-     (company-mode 1)))
+;;   (add-hook
+;;    'nodejs-repl-mode-hook
+;;    (lambda ()
+;;      (company-mode 1)))
 
-  :bind (:map nodejs-repl-mode-map
-         ("TAB" . #'company-complete))
-  :defer t
-  :ensure t)
+;;   :bind (:map nodejs-repl-mode-map
+;;          ("TAB" . #'company-complete))
+;;   :defer t
+;;   :ensure t)
 
 ;; /b/} nodejs-repl
 
@@ -3690,6 +3699,29 @@ fields which we need."
   :pin manual)
 
 ;; /b/} rh-scratch-js
+
+;; /b/{ inter-node
+
+(use-package inter-node
+  :commands (inter-node-mode
+             inter-node-repl
+             inter-node-eval
+             inter-node-eval-buffer)
+  :config
+  (add-to-list
+   'display-buffer-alist
+   '("*inter-node-repl*"
+     (display-buffer-reuse-window
+      display-buffer-same-window)))
+
+  ;; Using company-capf until a proper company back-end is implemented
+  (require 'company-capf)
+  (bind-key "C-x C-<tab>" #'company-capf inter-node-mode-keymap)
+
+  :defer t
+  :pin manual)
+
+;; /b/} inter-node
 
 ;; /b/{ css-mode
 
@@ -3703,9 +3735,30 @@ fields which we need."
    (lambda ()
      (rh-programming-minor-modes 1)
      (rh-project-setup)))
+
   :ensure t)
 
 ;; /b/} css-mode
+
+;; /b/{ scss-mode
+
+(use-package scss-mode
+  :config
+
+  (add-hook
+   'css-mode-hook
+   (lambda ()
+     (rh-programming-minor-modes 1)
+     (company-mode 1)
+     (rh-project-setup)))
+
+  :bind (:map scss-mode-map
+         ("C-S-b" . recompile)
+         ("C-c b" . rh-compile-toggle-display))
+  :defer t
+  :ensure t)
+
+;; /b/} scss-mode
 
 ;; /b/{ web-beautify
 
@@ -3773,7 +3826,7 @@ fields which we need."
 
 (use-package edebug
   :config
-  (setq edebug-print-length nil)
+  (setq edebug-print-length -1)
 
   :demand t)
 
@@ -4129,6 +4182,7 @@ fields which we need."
 
   (setq tide-completion-ignore-case t)
   (setq tide-always-show-documentation t)
+  (setq tide-completion-enable-autoimport-suggestions nil)
 
   ;; (add-hook
   ;;  'tide-mode-hook

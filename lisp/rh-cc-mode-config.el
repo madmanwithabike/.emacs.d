@@ -43,14 +43,9 @@
 
   (setq-local company-backends
               '((company-keywords company-dabbrev-code)
-                company-capf company-files (company-dabbrev company-ispell)))
+                ;; company-capf
+                company-files (company-dabbrev company-ispell)))
 
-  ;; (bind-key "C-x C-<tab>"
-  ;;           (lambda ()
-  ;;             (interactive)
-  ;;             (let ((company-backends '((company-rtags company-clang))))
-  ;;               (company-complete)))
-  ;;           c-mode-base-map)
   (bind-key "C-x C-<tab>" #'company-rtags c-mode-base-map)
 
   (company-mode 1))
