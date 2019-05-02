@@ -4116,7 +4116,9 @@ fields which we need."
      (local-set-key (kbd "C-S-j") 'vr-web-hs-toggle-hiding)
      (local-set-key (kbd "C-x C-S-j") 'vr-web-hs-html-toggle-hiding)
      (local-set-key (kbd "C-M-n") 'forward-sexp)
-     (local-set-key (kbd "C-M-p") 'backward-sexp)))
+     (local-set-key (kbd "C-M-p") 'backward-sexp)
+     (local-set-key (kbd "C-S-b") 'recompile)
+     (local-set-key (kbd "C-c b") 'rh-compile-toggle-display)))
 
   :ensure t)
 
