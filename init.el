@@ -17,7 +17,7 @@
  '(longlines-show-hard-newlines t)
  '(make-backup-files nil)
  '(package-selected-packages
-   '(scss-mode lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
+   '(eval-sexp-fu scss-mode lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
  '(pop-up-windows nil)
  '(preview-scale-function 1.8)
  '(safe-local-variable-values '((eval progn (linum-mode -1) (nlinum-mode 1))))
@@ -2686,9 +2686,10 @@ fields which we need."
 
   (setq dumb-jump-selector 'ivy)
 
-  :bind (("M-g g" . dumb-jump-hydra/body)
-         ("s-." . dumb-jump-go)
-         ("s-[" . dumb-jump-back))
+  :bind (("C-M-/" . dumb-jump-hydra/body)
+         ("C-M-." . dumb-jump-go)
+         ("C-M-," . dumb-jump-back)
+         ("C-M-[" . dumb-jump-back))
   :defer t
   :ensure t)
 
@@ -2919,12 +2920,12 @@ fields which we need."
   "Enables some minor modes, useful for programming."
   (interactive)
   (let* ((toggle (not enable-supplied-p))
-         (enabled (local-variable-p 'vr-prog-modes))
+         (enabled (local-variable-p 'rh-prog-modes))
          (enabling (if toggle (if enabled nil t) enable))
          (disabling (not enabling)))
     (if (and (not enabled) enabling)
         (progn
-          (set (make-local-variable 'vr-prog-modes) t)
+          (set (make-local-variable 'rh-prog-modes) t)
           ;; (linum-mode 1)
           ;; (nlinum-mode 1)
           (rh-show-paren-local-mode 1)
@@ -2940,7 +2941,7 @@ fields which we need."
           ;; (message "Enablibling programming modes")
           )
       (when (and enabled disabling)
-        (kill-local-variable 'vr-prog-modes)
+        (kill-local-variable 'rh-prog-modes)
         ;; (linum-mode -1)
         ;; (nlinum-mode -1)
         (rh-show-paren-local-mode -1)
@@ -3459,7 +3460,7 @@ fields which we need."
   :mode "\\.js\\'"
   :interpreter "node"
   ;; "λ" stands for interactive and "n" for Node.JS
-  :delight '((:eval (if (bound-and-true-p inter-node-mode)
+  :delight '((:eval (if (bound-and-true-p jsi-node-mode)
                         "js2λn"
                       "js2"))
              :major)
@@ -3478,7 +3479,7 @@ fields which we need."
    'js2-mode-hook
    (lambda ()
      (setq-local rm-blacklist (seq-copy rm-blacklist))
-     (add-to-list 'rm-blacklist " inter-node")
+     (add-to-list 'rm-blacklist " jsi-node")
 
      (setq-local company-backends
                  '((company-keywords company-dabbrev-code)
@@ -3700,28 +3701,28 @@ fields which we need."
 
 ;; /b/} rh-scratch-js
 
-;; /b/{ inter-node
+;; /b/{ js-interaction
 
-(use-package inter-node
-  :commands (inter-node-mode
-             inter-node-repl
-             inter-node-eval
-             inter-node-eval-buffer)
+(use-package js-interaction
+  :commands (jsi-node-mode
+             jsi-node-repl
+             jsi-node-eval
+             jsi-node-eval-buffer)
   :config
   (add-to-list
    'display-buffer-alist
-   '("*inter-node-repl*"
+   '("*jsi-node-repl*"
      (display-buffer-reuse-window
       display-buffer-same-window)))
 
   ;; Using company-capf until a proper company back-end is implemented
   (require 'company-capf)
-  (bind-key "C-x C-<tab>" #'company-capf inter-node-mode-keymap)
+  (bind-key "C-x C-<tab>" #'company-capf jsi-node-mode-keymap)
 
   :defer t
   :pin manual)
 
-;; /b/} inter-node
+;; /b/} js-interaction
 
 ;; /b/{ css-mode
 
@@ -3821,8 +3822,8 @@ fields which we need."
   (define-key elisp-slime-nav-mode-map (kbd "M-[") 'pop-tag-mark)
 
   :after (lisp-mode ielm)
-  :ensure t
-  :demand t)
+  :demand t
+  :ensure t)
 
 (use-package edebug
   :config
@@ -3832,6 +3833,14 @@ fields which we need."
 
 (use-package lispy
   :ensure t)
+
+;; (use-package eval-sexp-fu
+;;   :config
+;;   (setq eval-sexp-fu-flash-duration 0.25)
+;;   (setq eval-sexp-fu-flash-error-duration 0.7)
+
+;;   :demand t
+;;   :ensure t)
 
 ;; /b/} lisp-mode
 
