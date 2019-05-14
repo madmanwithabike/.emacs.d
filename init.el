@@ -893,8 +893,8 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
              (set-face-attribute
               'region nil
               :box '(:line-width (-1 . -1)
-                                 :color "gtk_selection_bg_color"
-                                 :style nil))
+                     :color "gtk_selection_bg_color"
+                     :style nil))
              ;; ;; see https://www.reddit.com/r/emacs/comments/345by9/having_the_background_face_for_selection_region/
              ;; (setq redisplay-highlight-region-function
              ;;       (lambda (start end window rol)
@@ -918,8 +918,8 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
            (set-face-attribute
             'region nil
             :box '(:line-width -1
-                               :color "gtk_selection_bg_color"
-                               :style nil)))))
+                   :color "gtk_selection_bg_color"
+                   :style nil)))))
 
     ;; face-font-family-alternatives
 
@@ -3002,6 +3002,8 @@ fields which we need."
   (setq transient-display-buffer-action
         '(display-buffer-below-selected (side . bottom)))
 
+  (setq magit-bury-buffer-function #'quit-window)
+
   ;; See https://github.com/magit/magit/issues/2541
   ;; (setq magit-display-buffer-function
   ;;       (lambda (buffer)
@@ -3466,7 +3468,6 @@ fields which we need."
              :major)
   :config
   (require 'config-js2-mode)
-  ;; (require 'nodejs-repl)
   (require 'company)
 
   ;; Indentation style ajustments
@@ -3504,13 +3505,27 @@ fields which we need."
 ;; /b/{ typescript-mode
 
 (use-package typescript-mode
-  :delight (typescript-mode "ts")
+  ;; :delight (typescript-mode "ts")
+  :delight '((:eval (if (bound-and-true-p jsi-node-mode)
+                        "tsλn"
+                      "ts"))
+             :major)
   :config
+  (require 'company)
+
   (setq typescript-indent-level 2)
 
   (add-hook
    'typescript-mode-hook
    (lambda ()
+     (setq-local rm-blacklist (seq-copy rm-blacklist))
+     (add-to-list 'rm-blacklist " jsi-node")
+
+     (setq-local company-backends
+                 '((company-keywords company-dabbrev-code)
+                   company-files (company-dabbrev company-ispell)))
+     (company-mode 1)
+
      (rh-programming-minor-modes 1)
      (rh-project-setup)))
 
@@ -3747,7 +3762,7 @@ fields which we need."
   :config
 
   (add-hook
-   'css-mode-hook
+   'scss-mode-hook
    (lambda ()
      (rh-programming-minor-modes 1)
      (company-mode 1)
@@ -4096,11 +4111,13 @@ fields which we need."
   (setq web-mode-enable-current-element-highlight t)
   (setq web-mode-enable-auto-indentation nil)
 
-  (setq web-mode-comment-formats
-        (remove-if (lambda (comment-format)
-                     (string-equal (car comment-format) "javascript"))
-                   web-mode-comment-formats))
-  (add-to-list 'web-mode-comment-formats '("javascript" . "//"))
+  ;; (setq web-mode-comment-formats
+  ;;       (remove-if (lambda (comment-format)
+  ;;                    (string-equal (car comment-format) "javascript"))
+  ;;                  web-mode-comment-formats))
+  ;; (add-to-list 'web-mode-comment-formats '("javascript" . "//"))
+
+  (setcdr (assoc "javascript" web-mode-comment-formats #'string=) "//")
   (add-to-list 'web-mode-comment-formats '("jsx" . "//"))
 
   (copy-face 'show-paren-match 'web-mode-current-element-highlight-face)
