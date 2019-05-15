@@ -51,7 +51,9 @@
   "Returns `babel' for major-mode equal `typescript-mode'
 and nil for other modes."
   (cond
-   ((seq-contains-p jsi-transpiler-babel-default-modes major-mode) 'babel)))
+   ;; TODO: Change to seq-contains-p in the future when more emacs'es support it
+   ;; ((seq-contains-p jsi-transpiler-babel-default-modes major-mode) 'babel)))
+   ((member major-mode jsi-transpiler-babel-default-modes) 'babel)))
 
 (defcustom jsi-input-language #'jsi-input-language-get-default
   "String with input language name abbreviation used in interaction logs."

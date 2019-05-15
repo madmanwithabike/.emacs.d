@@ -2514,9 +2514,10 @@ fields which we need."
   (setq company-tooltip-align-annotations t)
   (setq company-echo-truncate-lines nil)
   (setq company-minimum-prefix-length 1)
-  (setq company-frontends '(rh-company-pseudo-tooltip-on-explicit-action
-                            company-preview-frontend
-                            company-echo-metadata-frontend))
+  (setq company-frontends
+        '(rh-company-pseudo-tooltip-on-explicit-action
+          company-preview-frontend
+          company-echo-metadata-frontend))
   (setq company-require-match nil)
 
   (setq company-idle-delay 0)
@@ -2624,6 +2625,22 @@ fields which we need."
                ((eq company-backend 'company-tide) "CA-τ")
                (t (symbol-name company-backend)))))
            company-lighter-base)))
+
+  ;; fci-mode interaction temporary patch
+  ;; see https://github.com/company-mode/company-mode/issues/180
+  (defvar-local company-fci-mode-on-p nil)
+
+  (defun company-turn-off-fci (&rest ignore)
+    (when (boundp 'fci-mode)
+      (setq company-fci-mode-on-p fci-mode)
+      (when fci-mode (fci-mode -1))))
+
+  (defun company-maybe-turn-on-fci (&rest ignore)
+    (when company-fci-mode-on-p (fci-mode 1)))
+
+  (add-hook 'company-completion-started-hook 'company-turn-off-fci)
+  (add-hook 'company-completion-finished-hook 'company-maybe-turn-on-fci)
+  (add-hook 'company-completion-cancelled-hook 'company-maybe-turn-on-fci)
 
   :ensure t)
 
@@ -3662,7 +3679,11 @@ fields which we need."
           (setf (cache-table-get id skewer-eval-print-map) pos))))))
 
 (use-package skewer-mode
-  :config (httpd-start)
+  :config
+  (httpd-start)
+  ;; Add host IP address to .emacs.d/secret.el as the following
+  ;; (customize-set-variable 'httpd-host "10.0.100.180")
+  ;; so httpd will use that IP instead of localhost
   :defer t
   :ensure t)
 
@@ -3759,6 +3780,7 @@ fields which we need."
 ;; /b/{ scss-mode
 
 (use-package scss-mode
+  :mode "\\.scss\\'"
   :config
 
   (add-hook
