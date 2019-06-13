@@ -13,11 +13,12 @@
    '("display" "displaymath" "equation" "eqnarray" "gather" "multline" "align" "alignat" "xalignat" "empheq"))
  '(hfy-default-face-def
    '((t :background "black" :foreground "white" :family "misc-fixed")))
+ '(httpd-host "10.0.100.180" t)
  '(indent-tabs-mode nil)
  '(longlines-show-hard-newlines t)
  '(make-backup-files nil)
  '(package-selected-packages
-   '(eval-sexp-fu scss-mode lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb flycheck-typescript-tslint yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
+   '(eval-sexp-fu scss-mode lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
  '(pop-up-windows nil)
  '(preview-scale-function 1.8)
  '(safe-local-variable-values '((eval progn (linum-mode -1) (nlinum-mode 1))))
@@ -36,6 +37,7 @@
  '(completion-dynamic-common-substring-face ((((class color) (background light)) (:background "light steel blue" :foreground "systemmenutext"))))
  '(completion-dynamic-prefix-alterations-face ((((class color) (background light)) (:background "cyan" :foreground "systemmenutext"))))
  '(completion-highlight-face ((((class color) (background light)) (:background "light sky blue" :underline t))))
+ '(flycheck-warning ((t (:underline (:color "yellow4" :style wave)))))
  '(iedit-occurrence ((((background light)) (:background "lightblue"))))
  '(iedit-read-only-occurrence ((((background light)) (:background "pale turquoise"))))
  '(rtags-errline ((((class color)) (:background "#ef8990"))))
@@ -117,6 +119,8 @@
 ;; ------------------------------------------------------------------
 ;;; Helper functions and common modules
 ;; ------------------------------------------------------------------
+
+(require 'cl-lib)
 
 ;; TODO: investigate the following packages
 ;;       see https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
@@ -1556,8 +1560,6 @@ Also sets SYMBOL to VALUE."
 (use-package color-theme-sanityinc-tomorrow
   :ensure t)
 
-;; /b/{ isearch
-
 (use-package isearch
   :config
   (setq isearch-allow-scroll t)
@@ -1581,7 +1583,18 @@ Also sets SYMBOL to VALUE."
   ;;         (recenter '(4)))))
   :demand t)
 
-;; /b/} isearch
+(use-package electric
+  :config
+  (defun rh-electric-indent-post-self-insert-function ()
+    (when (and electric-indent-mode
+               (eq last-command 'newline))
+      (save-excursion
+        (move-beginning-of-line 0)
+        (when (looking-at "^[[:blank:]]+$")
+          (delete-region (point) (line-end-position))))))
+
+  (add-hook 'post-self-insert-hook
+            #'rh-electric-indent-post-self-insert-function))
 
 ;; == smooth scrolling ==
 
@@ -2330,6 +2343,7 @@ fields which we need."
   (setq ac-modes (delq 'js2-jsx-mode ac-modes))
   (setq ac-modes (delq 'python-mode ac-modes))
   (setq ac-modes (delq 'scss-mode ac-modes))
+  (setq ac-modes (delq 'web-mode ac-modes))
 
   (ac-config-default)
 
@@ -2652,12 +2666,19 @@ fields which we need."
 ;; /b/{ flycheck
 
 (use-package flycheck
+  :custom
+  (flycheck-mode-line-prefix "Φ")
+  (flycheck-check-syntax-automatically '(save mode-enabled))
+  (flycheck-indication-mode nil)
+
+  :custom-face
+  ;; (flycheck-warning ((t (:underline (:color "orange" :style wave)))))
+  (flycheck-warning ((t (:underline (:color "deep sky blue" :style wave)))))
+
   :config
-  (setq flycheck-mode-line-prefix "Φ")
-  (setq flycheck-check-syntax-automatically '(save mode-enabled))
+  (flycheck-add-mode 'javascript-eslint 'web-mode)
 
-  (setq flycheck-indication-mode nil)
-
+  :defer t
   :ensure t)
 
 (use-package flycheck-popup-tip
@@ -2665,7 +2686,7 @@ fields which we need."
   (add-hook
    'flycheck-mode-hook
    (lambda ()
-     (set (make-local-variable 'rh-popup-direction) 'company)
+     (setq-local rh-popup-direction 'company)
      (flycheck-popup-tip-mode 1)))
 
   ;; (setq flycheck-popup-tip-error-prefix "> ")
@@ -2691,6 +2712,8 @@ fields which we need."
 
 (use-package dumb-jump
   :config
+  (require 'hydra)
+
   (defhydra dumb-jump-hydra (:color blue :columns 3)
     "Dumb Jump"
     ("j" dumb-jump-go "Go")
@@ -3439,6 +3462,12 @@ fields which we need."
 
 (use-package js
   ;; :mode ("\\.js\\'" . js-mode)
+  ;; :interpreter "node"
+  ;; "λ" stands for interactive and "n" for Node.JS
+  :delight '((:eval (if (bound-and-true-p jsi-node-mode)
+                        "jsλn"
+                      "js"))
+             :major)
   ;; :delight '((:eval (if (bound-and-true-p indium-interaction-mode)
   ;;                       "jsλi"
   ;;                     "js"))
@@ -3464,6 +3493,11 @@ fields which we need."
   (add-hook
    'js-mode-hook
    (lambda ()
+     (setq-local company-backends
+                 '((company-keywords company-dabbrev-code)
+                   company-files (company-dabbrev company-ispell)))
+     (company-mode 1)
+
      (rh-programming-minor-modes 1)
      (rh-project-setup)))
 
@@ -3497,12 +3531,7 @@ fields which we need."
    'js2-mode-hook
    (lambda ()
      (setq-local rm-blacklist (seq-copy rm-blacklist))
-     (add-to-list 'rm-blacklist " jsi-node")
-
-     (setq-local company-backends
-                 '((company-keywords company-dabbrev-code)
-                   company-files (company-dabbrev company-ispell)))
-     (company-mode 1)))
+     (add-to-list 'rm-blacklist " jsi-node")))
 
   :ensure t)
 
@@ -3535,14 +3564,13 @@ fields which we need."
   (add-hook
    'typescript-mode-hook
    (lambda ()
-     (setq-local rm-blacklist (seq-copy rm-blacklist))
-     (add-to-list 'rm-blacklist " jsi-node")
-
      (setq-local company-backends
                  '((company-keywords company-dabbrev-code)
                    company-files (company-dabbrev company-ispell)))
      (company-mode 1)
 
+     (setq-local rm-blacklist (seq-copy rm-blacklist))
+     (add-to-list 'rm-blacklist " jsi-node")
      (rh-programming-minor-modes 1)
      (rh-project-setup)))
 
@@ -3751,9 +3779,12 @@ fields which we need."
      (display-buffer-reuse-window
       display-buffer-same-window)))
 
+  (setq jsi-node-command-require-esm t)
+  (setq jsi-babel-skip-import t)
+
   ;; Using company-capf until a proper company back-end is implemented
   (require 'company-capf)
-  (bind-key "C-x C-<tab>" #'company-capf jsi-node-mode-keymap)
+  (bind-key "C-c C-<tab>" #'company-capf jsi-node-mode-keymap)
 
   :defer t
   :pin manual)
@@ -3892,7 +3923,8 @@ fields which we need."
   (add-to-list
    'display-buffer-alist
    '("*Python*"
-     (display-buffer-same-window)))
+     (display-buffer-reuse-window
+      display-buffer-same-window)))
 
   (setq python-indent-offset 2)
   (setq python-shell-interpreter "python3")
@@ -3933,50 +3965,23 @@ fields which we need."
 
 ;; /b/{ nxml-mode
 
-;; (defun vr-nxml-forward-element (&optional arg)
-;;   (interactive "^p")
-;;   (if (cg-looking-at-any-group-head)
-;;       (cg-search-forward-group-balanced-tail)
-;;     (nxml-forward-element arg)))
-
-;; (defun vr-nxml-backward-element (&optional arg)
-;;   (interactive "^p")
-;;   (if (cg-looking-at-any-group-tail)
-;;       (cg-search-backward-group-balanced-head)
-;;     (nxml-backward-element arg)))
-
-(defun rh-nxml-code-folding-setup ()
-  ;; see http://emacs.stackexchange.com/questions/2884/the-old-how-to-fold-xml-question
-  ;; see http://www.emacswiki.org/emacs/HideShow
-  (add-to-list 'hs-special-modes-alist
-               '(nxml-mode
-                 ;; "<!--\\|<[^/>]*[^/]>"
-                 "<!--\\|<[^/][^>]*[^/]>"
-                 "-->\\|</[^/>]*[^/]>"
-                 "<!--"
-                 sgml-skip-tag-forward
-                 nil))
-
-  (setq cg-forward-list-original #'nxml-forward-element)
-  (setq cg-backward-list-original #'nxml-backward-element)
-
-  ;; (setq vr-nxml-code-folding-initialised t)
-  ;; (hs-minor-mode 1)
-  ;; (local-set-key (kbd "C-S-j") 'cg-hs-toggle-hiding)
-  ;; (local-set-key (kbd "C-M-n") 'vr-nxml-forward-element)
-  ;; (local-set-key (kbd "C-M-p") 'vr-nxml-backward-element)
-  )
-
 (use-package nxml-mode
-  ;; :mode "\\.xml\\'\\|\\.html\\'\\|\\.htm\\'"
   :mode "\\.xml\\'"
   :config
-  (require 'sgml-mode)
+  (require 'config-nxml-mode)
+
+  (setq nxml-child-indent 2)
+  (setq nxml-attribute-indent 2)
+  (setq nxml-sexp-element-flag nil)
+
+  (rh-nxml-code-folding-setup)
 
   (add-hook
    'nxml-mode-hook
    (lambda ()
-     (rh-nxml-code-folding-setup)
+     (setq cg-forward-list-original #'nxml-forward-element)
+     (setq cg-backward-list-original #'nxml-backward-element)
+
      (rh-programming-minor-modes 1)
      (rh-project-setup))))
 
@@ -4094,6 +4099,8 @@ fields which we need."
   ;; :mode "\\.html\\'\\|\\.mako\\'\\|\\.json\\'\\|\\.tsx\\'"
   :mode "\\.html\\'\\|\\.mako\\'\\|\\.tsx\\'\\|\\.jsx\\'"
   :config
+  (require 'company)
+
   (add-to-list
    'web-mode-ac-sources-alist
    '("html" . (ac-source-html-tag
@@ -4147,17 +4154,22 @@ fields which we need."
   (add-hook
    'web-mode-hook
    (lambda ()
-     (rh-programming-minor-modes t)
-     (auto-complete-mode -1)
-     (rh-project-setup)
-     ;; (vr-web-ac-setup)
+     (setq-local company-backends
+                 '((company-keywords company-dabbrev-code)
+                   company-files (company-dabbrev company-ispell)))
+     (company-mode 1)
 
-     (local-set-key (kbd "C-S-j") 'vr-web-hs-toggle-hiding)
-     (local-set-key (kbd "C-x C-S-j") 'vr-web-hs-html-toggle-hiding)
-     (local-set-key (kbd "C-M-n") 'forward-sexp)
-     (local-set-key (kbd "C-M-p") 'backward-sexp)
-     (local-set-key (kbd "C-S-b") 'recompile)
-     (local-set-key (kbd "C-c b") 'rh-compile-toggle-display)))
+     (rh-programming-minor-modes 1)
+     (setq-local electric-indent-inhibit t)
+     (rh-project-setup)
+
+     (local-set-key (kbd "C-S-j") #'vr-web-hs-toggle-hiding)
+     (local-set-key (kbd "C-x C-S-j") #'vr-web-hs-html-toggle-hiding)
+     (local-set-key (kbd "C-M-n") #'forward-sexp)
+     (local-set-key (kbd "C-M-p") #'backward-sexp)
+
+     (local-set-key (kbd "C-S-b") #'recompile)
+     (local-set-key (kbd "C-c b") #'rh-compile-toggle-display)))
 
   :ensure t)
 
@@ -4194,24 +4206,16 @@ fields which we need."
 (use-package tide
   :delight (tide-mode " τ")
   :config
+  (require 'company)
+  (require 'flycheck)
   (require 'config-tide)
 
-  (add-to-list 'display-buffer-alist
-               `("*tide-references*"
-                 ,(g2w-display #'display-buffer-below-selected t)
-                 (inhibit-same-window . t)
-                 (window-height . shrink-window-if-larger-than-buffer)))
-
-  ;; (add-to-list 'display-buffer-alist
-  ;;              `((lambda (buffer-nm actions)
-  ;;                  (when (and (char-or-string-p buffer-nm)
-  ;;                             (string= buffer-nm "*tide-documentation*"))
-  ;;                    (with-current-buffer buffer-nm
-  ;;                      (local-set-key (kbd "q") #'g2w-quit-window))
-  ;;                    t))
-  ;;                ,(g2w-display #'display-buffer-in-side-window t)
-  ;;                (inhibit-same-window . t)
-  ;;                (window-height . 15)))
+  (add-to-list
+   'display-buffer-alist
+   `("*tide-references*"
+     ,(g2w-display #'display-buffer-below-selected t)
+     (inhibit-same-window . t)
+     (window-height . shrink-window-if-larger-than-buffer)))
 
   (add-to-list
    'display-buffer-alist
@@ -4221,18 +4225,35 @@ fields which we need."
       display-buffer-pop-up-window)
      (inhibit-same-window . t)))
 
-  (add-to-list 'display-buffer-alist
-               `((lambda (buffer-nm actions)
-                   (with-current-buffer buffer-nm
-                     (eq major-mode 'tide-project-errors-mode)))
-                 ,(g2w-display #'display-buffer-below-selected)
-                 (inhibit-same-window . t)
-                 ;; (window-height . shrink-window-if-larger-than-buffer)
-                 ))
+  (add-to-list
+   'display-buffer-alist
+   `((lambda (buffer-nm actions)
+       (with-current-buffer buffer-nm
+         (eq major-mode 'tide-project-errors-mode)))
+     ,(g2w-display #'display-buffer-below-selected)
+     (inhibit-same-window . t)
+     ;; (window-height . shrink-window-if-larger-than-buffer)
+     ))
+
+  (flycheck-add-mode 'typescript-tslint 'web-mode)
+
+  ;; (flycheck-add-next-checker 'javascript-eslint 'javascript-tide 'append)
+  ;; (flycheck-add-next-checker 'javascript-eslint 'jsx-tide 'append)
+
+  (flycheck-add-next-checker 'typescript-tide 'javascript-eslint 'append)
+  (flycheck-add-next-checker 'tsx-tide 'javascript-eslint 'append)
+
+  ;; (flycheck-add-next-checker 'typescript-tide
+  ;;                            '(warning . javascript-eslint) 'append)
+  ;; (flycheck-add-next-checker 'tsx-tide
+  ;;                            '(warning . javascript-eslint) 'append)
 
   (setq tide-completion-ignore-case t)
   (setq tide-always-show-documentation t)
   (setq tide-completion-enable-autoimport-suggestions nil)
+
+  ;; company-tide is loaded after company
+  (bind-key "C-x C-<tab>" #'company-tide tide-mode-map)
 
   ;; (add-hook
   ;;  'tide-mode-hook
@@ -4240,6 +4261,7 @@ fields which we need."
   ;;    (set (make-local-variable 'rh-company-display-permanent-doc-buffer)
   ;;         #'rh-tide-company-display-permanent-doc-buffer)))
 
+  ;; :after (company flycheck)
   :bind (:map tide-mode-map
          ("M-." . tide-jump-to-definition)
          ("M-/" . tide-jump-to-implementation)
@@ -4252,6 +4274,7 @@ fields which we need."
          ;; :map tide-project-errors-mode-map
          ;; ("q" . rh-quit-window-kill)
          )
+  :defer t
   :ensure t)
 
 ;; /b/} tide
@@ -4264,7 +4287,14 @@ fields which we need."
   (company-mode 1)
   (flycheck-mode 1)
   (eldoc-mode 1)
-  (tide-hl-identifier-mode 1))
+  (tide-hl-identifier-mode 1)
+  ;; TODO: should remove company-tide from default company-backends
+  ;;       when company-keywords include typescript.
+  ;; The keywords could be taken from the following link:
+  ;; https://github.com/Microsoft/TypeScript/issues/2536
+  ;; (setq-local company-backends (delq 'company-tide company-backends))
+  (add-to-list 'company-backends 'company-tide)
+  (local-set-key (kbd "C-x C-<tab>") #'company-tide))
 
 (defun rh-setup-javascript-tide ()
   (interactive)
@@ -4272,16 +4302,22 @@ fields which we need."
   (company-mode 1)
   (flycheck-mode 1)
   (eldoc-mode 1)
-  (tide-hl-identifier-mode 1))
+  (tide-hl-identifier-mode 1)
+  (setq company-backends (delq 'company-tide company-backends))
+  (local-set-key (kbd "C-x C-<tab>") #'company-tide))
 
 (defun rh-setup-javascript-tern ()
   (interactive)
-  (tern-mode 1))
+  (tern-mode 1)
+  (setq company-backends (delq 'company-tern company-backends))
+  (local-set-key (kbd "C-c C-<tab>") #'company-tern))
 
 (defun rh-setup-javascript-tern-tide ()
   (interactive)
   (tern-mode 1)
-  (rh-setup-javascript-tide))
+  (rh-setup-javascript-tide)
+  (setq company-backends (delq 'company-tern company-backends))
+  (local-set-key (kbd "C-c C-<tab>") #'company-tern))
 
 ;; /b/} JavaScript Environments Setup
 
