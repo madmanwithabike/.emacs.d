@@ -13,7 +13,6 @@
    '("display" "displaymath" "equation" "eqnarray" "gather" "multline" "align" "alignat" "xalignat" "empheq"))
  '(hfy-default-face-def
    '((t :background "black" :foreground "white" :family "misc-fixed")))
- '(httpd-host "10.0.100.180" t)
  '(indent-tabs-mode nil)
  '(longlines-show-hard-newlines t)
  '(make-backup-files nil)
@@ -21,7 +20,11 @@
    '(eval-sexp-fu scss-mode lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
  '(pop-up-windows nil)
  '(preview-scale-function 1.8)
- '(safe-local-variable-values '((eval progn (linum-mode -1) (nlinum-mode 1))))
+ '(safe-local-variable-values
+   '((eval rh-project-setup)
+     (eval progn
+           (linum-mode -1)
+           (nlinum-mode 1))))
  '(tab-stop-list
    '(8 4 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100 104 108 112 116 120))
  '(visual-line-fringe-indicators '(nil right-curly-arrow))
@@ -37,7 +40,6 @@
  '(completion-dynamic-common-substring-face ((((class color) (background light)) (:background "light steel blue" :foreground "systemmenutext"))))
  '(completion-dynamic-prefix-alterations-face ((((class color) (background light)) (:background "cyan" :foreground "systemmenutext"))))
  '(completion-highlight-face ((((class color) (background light)) (:background "light sky blue" :underline t))))
- '(flycheck-warning ((t (:underline (:color "yellow4" :style wave)))))
  '(iedit-occurrence ((((background light)) (:background "lightblue"))))
  '(iedit-read-only-occurrence ((((background light)) (:background "pale turquoise"))))
  '(rtags-errline ((((class color)) (:background "#ef8990"))))
@@ -317,13 +319,12 @@ when only symbol face names are needed."
 ;;           (when (file-exists-p setup-file-name)
 ;;             (load setup-file-name)))))))
 
-(cl-defun rh-project-setup (&optional (setup-file-name "setup")
-                                      (init-file-name "init"))
+(cl-defun rh-project-setup ()
   (let ((rh-project-path (rh-project-get-path)))
     (when rh-project-path
       (message (concat "rh-project: " rh-project-path))
-      (let ((setup-file-path (concat rh-project-path setup-file-name ".el"))
-            (init-file-path (concat rh-project-path init-file-name ".el"))
+      (let ((setup-file-path (concat rh-project-path "setup.el"))
+            (init-file-path (concat rh-project-path "init.el"))
             (rh-project-id (directory-file-name
                             (expand-file-name rh-project-path))))
         (when (and (file-exists-p init-file-path)
@@ -340,6 +341,7 @@ when only symbol face names are needed."
     (when (file-directory-p generators-path)
       (expand-file-name generators-path))))
 
+;; TODO: remove this function and related code
 (defun rh-project-get-include-path (language)
   (let* ((project-path (rh-project-get-path))
          (src-tree-root (concat project-path "../"))
@@ -962,8 +964,8 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
    (lambda ()
      (recenter)))
 
-  ;; Load secrets from outside of public SCM
-  (load "~/.emacs.d/secret.el" t)
+  (load (concat "~/.emacs-private.d/systems/" system-name ".el") t)
+  (load "~/.emacs-private.d/secret.el" t)
 
   ;; (color-theme-sanityinc-tomorrow-blue)
   ;; (load-theme 'sanityinc-tomorrow-blue t)
@@ -2666,16 +2668,21 @@ fields which we need."
 ;; /b/{ flycheck
 
 (use-package flycheck
-  :custom
-  (flycheck-mode-line-prefix "Φ")
-  (flycheck-check-syntax-automatically '(save mode-enabled))
-  (flycheck-indication-mode nil)
+  ;; :custom
+  ;; (flycheck-mode-line-prefix "Φ")
+  ;; (flycheck-check-syntax-automatically '(save mode-enabled))
+  ;; (flycheck-indication-mode nil)
 
   :custom-face
   ;; (flycheck-warning ((t (:underline (:color "orange" :style wave)))))
   (flycheck-warning ((t (:underline (:color "deep sky blue" :style wave)))))
 
   :config
+  (customize-set-variable 'flycheck-mode-line-prefix "Φ")
+  (customize-set-variable 'flycheck-check-syntax-automatically
+                          '(save mode-enabled))
+  (customize-set-variable 'flycheck-indication-mode nil)
+
   (flycheck-add-mode 'javascript-eslint 'web-mode)
 
   :defer t
@@ -3438,7 +3445,8 @@ fields which we need."
      (rh-cc-compile-setup)
      ;; (rh-c++-ac-setup)
      (rh-cc-company-setup)
-     (rh-project-setup)))
+     ;; (rh-project-setup)
+     ))
 
   (add-hook
    'c-mode-hook
@@ -3448,7 +3456,8 @@ fields which we need."
      (rh-programming-minor-modes t)
      (rh-cc-rtags-setup)
      (rh-cc-compile-setup)
-     (rh-project-setup)))
+     ;; (rh-project-setup)
+     ))
 
   :bind (:map c-mode-base-map
          ("C-S-b" . recompile)
@@ -3499,7 +3508,8 @@ fields which we need."
      (company-mode 1)
 
      (rh-programming-minor-modes 1)
-     (rh-project-setup)))
+     ;; (rh-project-setup)
+     ))
 
   :bind (:map js-mode-map
          ("<f7>" . rh-nodejs-interaction))
@@ -3572,7 +3582,8 @@ fields which we need."
      (setq-local rm-blacklist (seq-copy rm-blacklist))
      (add-to-list 'rm-blacklist " jsi-node")
      (rh-programming-minor-modes 1)
-     (rh-project-setup)))
+     ;; (rh-project-setup)
+     ))
 
   :bind (:map typescript-mode-map
          ("{" . nil)
@@ -3708,10 +3719,13 @@ fields which we need."
 
 (use-package skewer-mode
   :config
-  (httpd-start)
-  ;; Add host IP address to .emacs.d/secret.el as the following
-  ;; (customize-set-variable 'httpd-host "10.0.100.180")
+  ;; Add host IP address to
+  ;; (concat "~/.emacs-private.d/systems/" system-name ".el")
   ;; so httpd will use that IP instead of localhost
+  ;;
+  ;; e.g. (customize-set-variable 'httpd-host "10.0.100.180")
+
+  (httpd-start)
   :defer t
   :ensure t)
 
@@ -3802,7 +3816,8 @@ fields which we need."
    'css-mode-hook
    (lambda ()
      (rh-programming-minor-modes 1)
-     (rh-project-setup)))
+     ;; (rh-project-setup)
+     ))
 
   :ensure t)
 
@@ -3819,7 +3834,8 @@ fields which we need."
    (lambda ()
      (rh-programming-minor-modes 1)
      (company-mode 1)
-     (rh-project-setup)))
+     ;; (rh-project-setup)
+     ))
 
   :bind (:map scss-mode-map
          ("C-S-b" . recompile)
@@ -3950,7 +3966,8 @@ fields which we need."
    'bazel-mode-hook
    (lambda ()
      (rh-programming-minor-modes 1)
-     (rh-project-setup)))
+     ;; (rh-project-setup)
+     ))
 
   :ensure t)
 
@@ -3983,7 +4000,8 @@ fields which we need."
      (setq cg-backward-list-original #'nxml-backward-element)
 
      (rh-programming-minor-modes 1)
-     (rh-project-setup))))
+     ;; (rh-project-setup)
+     )))
 
 ;; /b/} nxml-mode
 
@@ -4161,7 +4179,7 @@ fields which we need."
 
      (rh-programming-minor-modes 1)
      (setq-local electric-indent-inhibit t)
-     (rh-project-setup)
+     ;; (rh-project-setup)
 
      (local-set-key (kbd "C-S-j") #'vr-web-hs-toggle-hiding)
      (local-set-key (kbd "C-x C-S-j") #'vr-web-hs-html-toggle-hiding)
