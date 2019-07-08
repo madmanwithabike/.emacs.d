@@ -1,9 +1,32 @@
 ;;; js-interaction.el --- Minor Node.JS Interaction Mode and Minimalist Node.JS REPL
 ;;
-;; Description: Execute JavaScript commands in Node.JS
-;;              directly from JavaScript buffers.
+;; Description: Execute JavaScript commands in Node.JS directly from JavaScript
+;;              buffers with optional transpilation.
 ;; Author: Victor Rybynok
 ;; Copyright (C) 2019, Victor Rybynok, all rights reserved.
+
+;; TODO:
+;;  [ ] When node output has no errors, colour it with TypeScript mode.
+;;  [ ] Add syntax highlight expression results displayed in minibuffer.
+;;  [ ] When interacting with JS REPL from jsi-node minor mode, there should be
+;;      the maximum minibuffer height after which the output is not displayed in
+;;      minibuffer. Instead, it should pop jsi-log buffer and scroll it to its
+;;      bottom.
+;;  [ ] Add code-blocks "tab-folding" to jsi-log.
+;;  [ ] Add skewer as alternative JS REPL jsi-node minor mode.
+;;  [ ] Implement scratch repository for pure Node.JS.
+;;  [ ] Implement scratch repository for Node.JS with Typescript.
+;;  [ ] Implement scratch repository for pure Skewer.
+;;  [ ] Implement scratch repository for Skewer with React.
+;;  [ ] Implement scratch repository for Skewer with Typescript and React.
+;;
+;; R&D:
+;;  [?] Should jsi-log use pretty-print on Node.JS and Skewer outputs when there
+;;      are no errors?
+;;  [?] Should jsi-log have inspector-like folding on JS Objects and Array which
+;;      nest beyond certain threshold?
+;;  [?] Should jsi-log use Emacs' compilation mode to format Node.JS output in
+;;      case of errors?
 
 ;; -------------------------------------------------------------------
 ;;; js-interaction common
@@ -12,7 +35,7 @@
 
 (require 'cl-lib)
 (require 'js)
-(require 'typescript-mode nil t)
+(require 'typescript-mode)
 
 (defgroup js-interaction nil
   "Node.js REPL and its minor interaction mode."
@@ -20,7 +43,7 @@
   :group 'processes)
 
 (defun jsi--get (var)
-  "Returns (funcall var) if `var' is a function or `var' if not."
+  "Returns (funcall `VAR') if `VAR' is a function or `VAR' if not."
   (if (functionp var) (funcall var) var))
 
 ;; /b/}
@@ -227,10 +250,11 @@ If mode is not recognised, assumes JavaScript."
     (buffer-string)))
 
 (defun jsi--log-fontify-major-mode (syntax)
-  "Return mode used to fontify LANGUAGE."
+  "Return mode used to fontify SYNTAX."
   (case syntax
     (ts 'typescript-mode)
-    (js 'js-mode)
+    (js 'typescript-mode)
+    ;; (js 'js-mode)
     (output nil)))
 
 (defun jsi--log-symbol-text (symbol)
@@ -507,7 +531,7 @@ Only `babel' TRANSPILER value is currently supported."
 ;; /b/}
 
 ;; -------------------------------------------------------------------
-;;; jsi-node-repl - minimalist Node.js REPL for jsi-node minor mode
+;;; jsi-node-repl - minimalist Node.JS REPL for jsi-node minor mode
 ;; -------------------------------------------------------------------
 ;; /b/{
 
@@ -525,6 +549,11 @@ Only `babel' TRANSPILER value is currently supported."
 
 (defcustom jsi-node-repl-prompt "> "
   "Node.js REPL prompt used in `jsi-node-repl-mode'"
+  :group 'js-interaction
+  :type 'string)
+
+(defcustom jsi-node-repl-compact-output "2"
+  "Compact argument: 'util.inspect(output, { `compact': false, })'"
   :group 'js-interaction
   :type 'string)
 
@@ -561,8 +590,9 @@ see https://github.com/standard-things/esm")
    "  useGlobal: false,"
    "  replMode: repl.REPL_MODE_SLOPPY,"
    "  writer: output => util.inspect(output, {"
-   "    maxArrayLength: null,"
-   "    compact: false,"
+   "    maxArrayLength: Infinity,"
+   "    depth: Infinity,"
+   "    compact: " jsi-node-repl-compact-output ","
    "  }),"
    ;; "  writer: output => output,"
    "})")
@@ -694,7 +724,8 @@ see https://github.com/standard-things/esm")
       (set-window-point window (point)))))
 
 (defun jsi--node-get-java-script-output (input-string)
-  (unless (string-empty-p input-string)
+  (if (string-blank-p input-string)
+      ""
     (let (beg end)
       (save-excursion
         (goto-char (point-min))

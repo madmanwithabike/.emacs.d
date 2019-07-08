@@ -13,6 +13,7 @@
    '("display" "displaymath" "equation" "eqnarray" "gather" "multline" "align" "alignat" "xalignat" "empheq"))
  '(hfy-default-face-def
    '((t :background "black" :foreground "white" :family "misc-fixed")))
+ '(httpd-host "10.0.100.180" t)
  '(indent-tabs-mode nil)
  '(longlines-show-hard-newlines t)
  '(make-backup-files nil)
@@ -40,6 +41,7 @@
  '(completion-dynamic-common-substring-face ((((class color) (background light)) (:background "light steel blue" :foreground "systemmenutext"))))
  '(completion-dynamic-prefix-alterations-face ((((class color) (background light)) (:background "cyan" :foreground "systemmenutext"))))
  '(completion-highlight-face ((((class color) (background light)) (:background "light sky blue" :underline t))))
+ '(flycheck-warning ((t (:underline (:color "deep sky blue" :style wave)))))
  '(iedit-occurrence ((((background light)) (:background "lightblue"))))
  '(iedit-read-only-occurrence ((((background light)) (:background "pale turquoise"))))
  '(rtags-errline ((((class color)) (:background "#ef8990"))))
@@ -52,8 +54,56 @@
  '(whitespace-tab ((t (:foreground "lightgray")))))
 
 ;; ------------------------------------------------------------------
+;;; Bugs, TODO and R&D work packages
+;; ------------------------------------------------------------------
+;; /b/{
+
+;; Bugs:
+;; [ ] All compilation buffers should be marked as "bottom side window".
+;; [ ] All "bottom side window" buffers should iflipb-next-buffer().
+;; [ ] All "non-side window" buffers should be ingnored when
+;;     iflipb-next-buffer() in other windows.
+;; [ ] Bottom-side window should have tabs for all buffers marked as "bottom
+;;     side window".
+
+;; TODO:
+;; [ ] Switch to color-theme-sanityinc-tomorrow-blue.
+;; [ ] Refactor skewer-mode config to rh-style.
+;; [ ] Refactor web-mode config to rh-style.
+;; [ ] Refactor auto-complete config to rh-style.
+;; [ ] Remove rh-scratch-js mode after js-interaction scratches are implemented.
+;; [ ] Convert abc functions to abc mode.
+;; [ ] Convert rh-project functions to rh-project mode.
+
+;; R&D:
+;; [?] Bring Emacs init back to terminal-friendly state. Possibly, switch to
+;;     text terminal as the default...
+
+;; /b/}
+
+;; ------------------------------------------------------------------
+;;; New packages to consider
+;; ------------------------------------------------------------------
+;; /b/{
+
+;; * Tabs to switch between compilation and other top/bottom side buffers
+;;   https://github.com/ema2159/centaur-tabs
+;;   https://github.com/manateelazycat/awesome-tab
+
+;; https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
+;; https://github.com/bmag/emacs-purpose
+
+;; see https://www.quicklisp.org/beta/ for lisp libraries
+;; Can then do magic like this:
+;; (ql:quickload "alexandria")
+;; (alexandria:flatten list)
+
+;; /b/}
+
+;; ------------------------------------------------------------------
 ;;; Emacs Version Variables
 ;; ------------------------------------------------------------------
+;; /b/{
 
 (setq vr-emacs-version-string
       (replace-regexp-in-string
@@ -63,9 +113,12 @@
 (setq vr-emacs-version
       (mapcar 'string-to-number (split-string vr-emacs-version-string "\\.")))
 
+;; /b/}
+
 ;; ------------------------------------------------------------------
 ;;; File Location Variables
 ;; ------------------------------------------------------------------
+;; /b/{
 
 (setq vr-site-start-file-paths ())
 
@@ -118,20 +171,14 @@
 (setq vr-user-site-start-file-path
       (concat vr-user-lisp-directory-path "site-start.el"))
 
+;; /b/}
+
 ;; ------------------------------------------------------------------
 ;;; Helper functions and common modules
 ;; ------------------------------------------------------------------
+;; /b/{
 
 (require 'cl-lib)
-
-;; TODO: investigate the following packages
-;;       see https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
-;;       https://github.com/bmag/emacs-purpose
-
-;; see https://www.quicklisp.org/beta/ for lisp libraries
-;; Can then do magic like this:
-;; (ql:quickload "alexandria")
-;; (alexandria:flatten list)
 
 ;; /b/{ Package initialisation and `use-package' bootstrap
 
@@ -283,6 +330,8 @@ when only symbol face names are needed."
 (defun rh-quit-window-kill ()
   (interactive)
   (quit-window t))
+
+;; /b/}
 
 ;; -------------------------------------------------------------------
 ;;; Emacs Packages Tree (that is where ramblehead's packages grow)
@@ -2013,9 +2062,11 @@ fields which we need."
 
 ;; -------------------------------------------------------------------
 ;;; Completion, Regexps, Patterns and Highlighting
-;; /b/{ +++++++++ ----------------------------------------------------
+;; -------------------------------------------------------------------
+;; /b/{
 
-;; /b/{ ivy/swiper/counsel/etc.
+;;; DWIM modes such as ivy, swiper, counsel
+;;; /b/{
 
 ;; See the following links on some ivy hints
 ;; https://writequit.org/denver-emacs/presentations/2017-04-11-ivy.html
@@ -2042,10 +2093,11 @@ fields which we need."
      (inhibit-same-window . t)))
 
   ;; (add-to-list 'g2w-display-buffer-reuse-window-commands 'ivy-occur-press-and-switch)
-  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
-  (add-to-list
-   'g2w-display-buffer-reuse-window-commands
-   'compilation-display-error)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'compile-goto-error)
+
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'compilation-display-error)
 
   ;; (defadvice ivy-occur-press-and-switch
   ;;     (after rh-ivy-occur-press-and-switch activate)
@@ -2192,9 +2244,7 @@ fields which we need."
   :demand t
   :ensure t)
 
-;; /b/} ivy/swiper/counsel/etc.
-
-;; /b/{ hi-lock-mode
+;;; /b/}
 
 (use-package hi-lock-mode
   :init
@@ -2202,17 +2252,9 @@ fields which we need."
 
   :defer t)
 
-;; /b/} hi-lock-mode
-
-;; /b/{ pcre2el
-
 (use-package pcre2el
   :demand t
   :ensure t)
-
-;; /b/} pcre2el
-
-;; /b/{ visual-regexp
 
 (use-package visual-regexp
   :config
@@ -2233,9 +2275,8 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} visual-regexp
-
-;; /b/{ yasnippet
+;;; yasnippet
+;;; /b/{
 
 (use-package yasnippet
   :delight (yas-minor-mode " ⵙ")
@@ -2257,9 +2298,7 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} yasnippet
-
-;; /b/{ pos-tip
+;;; /b/}
 
 (use-package pos-tip
   :config
@@ -2270,10 +2309,6 @@ fields which we need."
   ;;   "Default background color of pos-tip's tooltip.")
 
   :ensure t)
-
-;; /b/} pos-tip
-
-;; /b/{ popup
 
 (use-package popup
   :config
@@ -2302,9 +2337,8 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} popup
-
-;; /b/{ auto-complete
+;;; auto-complete
+;;; /b/{
 
 (defun vr-ac-add-buffer-dict (dict)
   (when (not (local-variable-p 'ac-dictionary-files))
@@ -2443,51 +2477,14 @@ fields which we need."
   )
 
 (global-set-key (kbd "C-<tab>") 'rh-ac-start-if-ac-mode)
-;; (global-set-key (kbd "<f7>") 'auto-complete-mode)
 
-;; /b/} auto-complete
-
-;; /b/{ company
+;;; /b/}
 
 (use-package company
   :init
   (defvar rh-company-display-permanent-doc-buffer nil)
 
   :config
-  ;; (add-to-list 'display-buffer-alist
-  ;;              '("*company-documentation*"
-  ;;                (lambda (buffer alist)
-  ;;                  (or (let ((win (display-buffer-below-selected buffer alist)))
-  ;;                        (message "*** ooo")
-  ;;                        (shrink-window-if-larger-than-buffer win)
-  ;;                        win)
-  ;;                      (display-buffer-reuse-window buffer alist)
-  ;;                      (display-buffer-use-some-window buffer alist)
-  ;;                      (display-buffer-pop-up-window buffer alist)))
-  ;;                ;; (display-buffer-below-selected
-  ;;                ;;  display-buffer-reuse-window
-  ;;                ;;  display-buffer-use-some-window
-  ;;                ;;  display-buffer-pop-up-window)
-  ;;                (inhibit-same-window . t)
-  ;;                (window-height . 0.3)))
-
-  ;; (add-to-list
-  ;;  'display-buffer-alist
-  ;;  '("*company-documentation*"
-  ;;    ((lambda (buffer alist)
-  ;;       (or (let ((win (display-buffer-below-selected buffer alist)))
-  ;;          (when win
-  ;;            (run-with-timer
-  ;;             0 nil
-  ;;             (lambda (win)
-  ;;               (shrink-window-if-larger-than-buffer win))
-  ;;             win))
-  ;;          win)
-  ;;        (display-buffer-use-some-window buffer alist)
-  ;;        (display-buffer-pop-up-window buffer alist))))
-  ;;    (inhibit-same-window . t)
-  ;;    (window-height . 0.3)))
-
   (add-to-list
    'display-buffer-alist
    '("*company-documentation*"
@@ -2499,6 +2496,10 @@ fields which we need."
      (inhibit-same-window . t)))
 
   (setq company-lighter-base "CA")
+
+  (setq company-backends
+        '((company-keywords company-dabbrev-code)
+          company-files (company-dabbrev company-ispell)))
 
   ;; TODO: write to https://github.com/company-mode/company-mode/issues/123
   (defun rh-company-pseudo-tooltip-on-explicit-action (command)
@@ -2660,12 +2661,8 @@ fields which we need."
 
   :ensure t)
 
-;; (use-package company-quickhelp
-;;   :ensure)
-
-;; /b/} company
-
-;; /b/{ flycheck
+;;; flycheck
+;;; /b/{
 
 (use-package flycheck
   ;; :custom
@@ -2713,9 +2710,7 @@ fields which we need."
 ;;   :after (flycheck pos-tip)
 ;;   :ensure t)
 
-;; /b/} flycheck
-
-;; /b/{ dumb-jump
+;;; /b/}
 
 (use-package dumb-jump
   :config
@@ -2740,17 +2735,12 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} dumb-jump
-
-;; -------------------------------------------------------------------
-;;; Completion, Regexps, Patterns and Highlighting
-;; ++++++++++ /b/} ---------------------------------------------------
+;; /b/}
 
 ;; -------------------------------------------------------------------
 ;;; Programming Languages (Compilers, Debuggers, Profilers etc.)
-;; /b/{ +++++++++ ----------------------------------------------------
-
-;; /b/{ sh-mode
+;; -------------------------------------------------------------------
+;; /b/{
 
 (use-package sh-script
   :config
@@ -2762,10 +2752,6 @@ fields which we need."
      (rh-programming-minor-modes 1)))
 
   :defer t)
-
-;; /b/} sh-mode
-
-;; /b/{ compile
 
 (use-package compile
   :config
@@ -2783,21 +2769,24 @@ fields which we need."
   (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
   (add-to-list 'g2w-display-buffer-reuse-window-commands 'compilation-display-error)
 
-  (defun rh-compile-toggle-display ()
+  (cl-defun rh-compile-toggle-display
+      (&optional (compilation-buffer-name "*compilation*"))
     (interactive)
-    (rh-toggle-display "*compilation*"))
+    (rh-toggle-display compilation-buffer-name))
+
+  (defun rh-kill-buffer-and-delete-window ()
+    (interactive)
+    (kill-buffer (current-buffer))
+    (delete-window))
 
   :bind (:map compilation-mode-map
-         ("q" . g2w-quit-window)
+         ("q" . delete-window)
+         ("M-q" . rh-kill-buffer-and-delete-window)
          ;; ("<return>" . compilation-display-error)
          ;; ("<kp-enter>" . compilation-display-error)
          ("M-<return>" . compilation-display-error)
          ("M-<kp-enter>" . compilation-display-error))
   :defer)
-
-;; /b/} compile
-
-;; /b/{ eshell
 
 (use-package eshell
   :config
@@ -2825,9 +2814,8 @@ fields which we need."
 
   :ensure t)
 
-;; /b/} eshell
-
-;; /b/{ Line Numbers
+;;; Line Numbers
+;;; /b/{
 
 (use-package linum
   :init
@@ -2900,7 +2888,7 @@ fields which we need."
   :demand t
   :ensure t)
 
-;; /b/} Line Numbers
+;;; /b/}
 
 (use-package fill-column-indicator
   :ensure)
@@ -3114,8 +3102,6 @@ fields which we need."
 ;; (gdb-inferior-io           gdb-inferior-io-name        gdb-inferior-io-mode                           )
 ;; (gdb-partial-output-buffer gdb-partial-output-name                                                    )
 
-;; /b/{ gdb-mi
-
 (use-package gdb-mi
   ;; :init
   ;; (defvar vr-gdb-original-buffer nil)
@@ -3171,10 +3157,6 @@ fields which we need."
   (setq gdb-delete-out-of-scope nil)
   (gdb-speedbar-auto-raise))
 
-;; /b/} gdb-mi
-
-;; /b/{ realgud
-
 ;; Autoinstall from init is disabled until the following problem is solved:
 ;; https://github.com/syl20bnr/spacemacs/issues/5917
 (use-package realgud
@@ -3183,9 +3165,8 @@ fields which we need."
   :pin melpa
   :ensure t)
 
-;; /b/} realgud
-
-;; /b/{ C++
+;;; C++
+;;; /b/{
 
 (use-package rtags
   ;; :commands rtags-start-process-unless-running
@@ -3332,18 +3313,26 @@ fields which we need."
   :defer t
   :pin manual)
 
+;; (use-package auto-complete-clang
+;;   :defer t
+;;   :ensure t)
+
+;; (use-package irony
+;;   :defer t
+;;   :ensure t)
+
+;; (use-package company-irony
+;;   :defer t
+;;   :ensure t)
+
 (use-package cc-mode
   ;; :mode "/hpp\\'\\|\\.ipp\\'\\|\\.h\\'"
   :mode "/hpp\\'\\|\\.ipp\\'"
   :config
   (require 'compile)
   (require 'auto-complete-c-headers)
-  (require 'auto-complete-clang)
   (require 'rtags)
   (require 'rh-cc-mode-config)
-
-  (defvar-local rh-c++-compiler "g++")
-  (defvar-local rh-c++-std "-std=c++1z")
 
   ;; Adopted from http://www.emacswiki.org/emacs/auto-complete-clang-extension.el
   (defun rh-gcc-get-isystem-path (compiler)
@@ -3357,11 +3346,6 @@ fields which we need."
                                       (+ start-pos (length start-string))
                                       end-pos)))
       (split-string include-string)))
-
-  (defun rh-c++-auto-complete-clang ()
-    (interactive)
-    (message "auto-completing with clang...")
-    (auto-complete (append '(ac-source-clang) ac-sources)))
 
   (defun rh-cc-compile-setup ()
     (let ((project-path (rh-project-get-path)))
@@ -3388,49 +3372,6 @@ fields which we need."
     ;; (setq rtags-display-current-error-as-tooltip t)
     (rh-rtags-header-line-setup))
 
-  (defun rh-c++-ac-setup ()
-    ;; see https://github.com/mooz/auto-complete-c-headers
-
-    ;; #include auto-completion search paths
-    (set (make-local-variable 'achead:include-directories)
-         (append (rh-project-get-include-path "c++")
-                 (rh-gcc-get-isystem-path rh-c++-compiler)
-                 achead:include-directories))
-
-    ;; 'rtags-ac' is not as good as 'auto-complete-clang',
-    ;; so using 'auto-complete-clang'
-    ;; (require 'rtags-ac)
-    ;; (setq rtags-completions-enabled t)
-
-    ;; ;; see https://github.com/brianjcj/auto-complete-clang
-
-    ;; i.e. 'echo "" | g++ -v -x c++ -E -'
-    ;; (setq clang-completion-suppress-error 't)
-    ;; (setq ac-clang-executable (executable-find "clang-3.6"))
-    (set (make-local-variable 'ac-clang-flags)
-         (append `(,rh-c++-std)
-                 (mapcar (lambda (item) (concat "-I" item))
-                         (rh-project-get-include-path "c++"))
-                 (mapcar (lambda (item) (concat "-isystem" item))
-                         (rh-gcc-get-isystem-path rh-c++-compiler))))
-
-    (set (make-local-variable 'ac-sources)
-         (append '(ac-source-c-headers
-                   ;; Dynamic auto-completion is slow and interferes with
-                   ;; typing, whether it is 'c-source-clang' or
-                   ;; 'ac-source-rtags', therefore it is only activated on 'C-x
-                   ;; C-<tab>' (see key definitions below in this function) in
-                   ;; 'rh-c++-auto-complete-clang' function.  ac-source-clang
-                   ;; ac-source-rtags
-                   )
-                 ac-sources))
-
-    (let ((local-ac-completing-map (copy-keymap ac-completing-map)))
-      (set (make-local-variable 'ac-completing-map) local-ac-completing-map))
-    (local-set-key (kbd "C-x C-<tab>") #'rh-c++-auto-complete-clang)
-
-    (auto-complete-mode 1))
-
   (add-hook
    'c++-mode-hook
    (lambda ()
@@ -3443,10 +3384,7 @@ fields which we need."
      (rh-c++-font-lock-setup)
      (rh-c++-yas-setup)
      (rh-cc-compile-setup)
-     ;; (rh-c++-ac-setup)
-     (rh-cc-company-setup)
-     ;; (rh-project-setup)
-     ))
+     (rh-cc-company-setup)))
 
   (add-hook
    'c-mode-hook
@@ -3455,9 +3393,7 @@ fields which we need."
      (abbrev-mode -1)
      (rh-programming-minor-modes t)
      (rh-cc-rtags-setup)
-     (rh-cc-compile-setup)
-     ;; (rh-project-setup)
-     ))
+     (rh-cc-compile-setup)))
 
   :bind (:map c-mode-base-map
          ("C-S-b" . recompile)
@@ -3465,9 +3401,7 @@ fields which we need."
 
   :defer t)
 
-;; /b/} C++
-
-;; /b/{ js-mode
+;;; /b/}
 
 (use-package js
   ;; :mode ("\\.js\\'" . js-mode)
@@ -3502,22 +3436,14 @@ fields which we need."
   (add-hook
    'js-mode-hook
    (lambda ()
-     (setq-local company-backends
-                 '((company-keywords company-dabbrev-code)
-                   company-files (company-dabbrev company-ispell)))
+     (setq-local company-backends (copy-tree company-backends))
      (company-mode 1)
 
-     (rh-programming-minor-modes 1)
-     ;; (rh-project-setup)
-     ))
+     (rh-programming-minor-modes 1)))
 
   :bind (:map js-mode-map
          ("<f7>" . rh-nodejs-interaction))
   :defer t)
-
-;; /b/} js-mode
-
-;; /b/{ js2-mode
 
 (use-package js2-mode
   :mode "\\.js\\'"
@@ -3545,20 +3471,9 @@ fields which we need."
 
   :ensure t)
 
-;; (use-package js2-jsx-mode
-;;   :mode "\\.jsx\\'")
-
-;; /b/} js2-mode
-
-;; /b/{ js2-refactor
-
 (use-package js2-refactor
   :defer t
   :ensure t)
-
-;; /b/} js2-refactor
-
-;; /b/{ typescript-mode
 
 (use-package typescript-mode
   ;; :delight (typescript-mode "ts")
@@ -3574,16 +3489,12 @@ fields which we need."
   (add-hook
    'typescript-mode-hook
    (lambda ()
-     (setq-local company-backends
-                 '((company-keywords company-dabbrev-code)
-                   company-files (company-dabbrev company-ispell)))
+     (setq-local company-backends (copy-tree company-backends))
      (company-mode 1)
 
      (setq-local rm-blacklist (seq-copy rm-blacklist))
      (add-to-list 'rm-blacklist " jsi-node")
-     (rh-programming-minor-modes 1)
-     ;; (rh-project-setup)
-     ))
+     (rh-programming-minor-modes 1)))
 
   :bind (:map typescript-mode-map
          ("{" . nil)
@@ -3599,10 +3510,6 @@ fields which we need."
          ("C-c b" . rh-compile-toggle-display))
   :defer t
   :ensure t)
-
-;; /b/} typescript-mode
-
-;; /b/{ tern
 
 (use-package tern
   :delight (tern-mode " ρ")
@@ -3642,21 +3549,6 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} tern
-
-;; /b/{ company-tern
-
-(use-package company-tern
-  :config
-  (add-to-list 'company-backends 'company-tern)
-
-  :after tern
-  :ensure t)
-
-;; /b/} company-tern
-
-;; /b/{ ac-js2
-
 (use-package ac-js2
   :commands (ac-js2-mode)
   :init
@@ -3665,9 +3557,8 @@ fields which we need."
   :disabled t
   :ensure t)
 
-;; /b/} ac-js2
-
-;; /b/{ skewer-mode
+;;; skewer-mode
+;;; /b/{
 
 (defun vr-skewer-eval-last-expression-or-region (start end)
   (interactive (rh-point-or-region))
@@ -3729,57 +3620,11 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} skewer-mode
-
-;; /b/{ nodejs-repl
-
-;; (use-package nodejs-repl
-;;   :config
-;;   (add-to-list 'rm-blacklist " NodeJS Interaction")
-
-;;   (setenv "NODE_NO_READLINE" "1")
-;;   (setenv "NODE_DISABLE_COLORS" "1")
-
-;;   ;; (add-to-list
-;;   ;;  'display-buffer-alist
-;;   ;;  '("*nodejs*"
-;;   ;;    (display-buffer-reuse-window
-;;   ;;     rh-display-buffer-reuse-right
-;;   ;;     rh-display-buffer-reuse-left
-;;   ;;     rh-display-buffer-reuse-down
-;;   ;;     rh-display-buffer-reuse-up
-;;   ;;     display-buffer-pop-up-window)))
-
-;;   (add-to-list
-;;    'display-buffer-alist
-;;    '("*nodejs*"
-;;      (display-buffer-reuse-window
-;;       display-buffer-same-window)))
-
-;;   (require 'config-nodejs-repl)
-;;   (require 'company)
-
-;;   (add-hook
-;;    'nodejs-repl-mode-hook
-;;    (lambda ()
-;;      (company-mode 1)))
-
-;;   :bind (:map nodejs-repl-mode-map
-;;          ("TAB" . #'company-complete))
-;;   :defer t
-;;   :ensure t)
-
-;; /b/} nodejs-repl
-
-;; /b/{ rh-scratch-js
+;;; /b/}
 
 (use-package rh-scratch-js
   :commands rh-scratch-js
   :pin manual)
-
-;; /b/} rh-scratch-js
-
-;; /b/{ js-interaction
 
 (use-package js-interaction
   :commands (jsi-node-mode
@@ -3803,10 +3648,6 @@ fields which we need."
   :defer t
   :pin manual)
 
-;; /b/} js-interaction
-
-;; /b/{ css-mode
-
 (use-package css-mode
   :mode "\\.css\\'"
   :config
@@ -3815,15 +3656,9 @@ fields which we need."
   (add-hook
    'css-mode-hook
    (lambda ()
-     (rh-programming-minor-modes 1)
-     ;; (rh-project-setup)
-     ))
+     (rh-programming-minor-modes 1)))
 
   :ensure t)
-
-;; /b/} css-mode
-
-;; /b/{ scss-mode
 
 (use-package scss-mode
   :mode "\\.scss\\'"
@@ -3833,9 +3668,7 @@ fields which we need."
    'scss-mode-hook
    (lambda ()
      (rh-programming-minor-modes 1)
-     (company-mode 1)
-     ;; (rh-project-setup)
-     ))
+     (company-mode 1)))
 
   :bind (:map scss-mode-map
          ("C-S-b" . recompile)
@@ -3843,16 +3676,11 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} scss-mode
-
-;; /b/{ web-beautify
-
 (use-package web-beautify
   :ensure t)
 
-;; /b/} web-beautify
-
-;; /b/{ lisp-mode
+;;; lisp-mode
+;;; /b/{
 
 (use-package ielm
   :config
@@ -3926,9 +3754,7 @@ fields which we need."
 ;;   :demand t
 ;;   :ensure t)
 
-;; /b/} lisp-mode
-
-;; /b/{ python-mode
+;;; /b/}
 
 (use-package python
   :mode ("\\.py\\'" . python-mode)
@@ -3953,10 +3779,6 @@ fields which we need."
 
   :defer t)
 
-;; /b/} python-mode
-
-;; /b/{ bazel-mode
-
 (use-package bazel-mode
   :mode "\\.bazel\\'\\|\\.bzl\\'\\|WORKSPACE\\'\\|\\.?BUILD\\'"
   :config
@@ -3965,22 +3787,9 @@ fields which we need."
   (add-hook
    'bazel-mode-hook
    (lambda ()
-     (rh-programming-minor-modes 1)
-     ;; (rh-project-setup)
-     ))
+     (rh-programming-minor-modes 1)))
 
   :ensure t)
-
-;; /b/} bazel-mode
-
-;; /b/{ visual-basic-mode
-
-(autoload 'visual-basic-mode "visual-basic-mode" "Visual Basic mode." t)
-(add-to-list 'auto-mode-alist '("\\.vbs\\'" . visual-basic-mode))
-
-;; /b/} visual-basic-mode
-
-;; /b/{ nxml-mode
 
 (use-package nxml-mode
   :mode "\\.xml\\'"
@@ -3999,13 +3808,10 @@ fields which we need."
      (setq cg-forward-list-original #'nxml-forward-element)
      (setq cg-backward-list-original #'nxml-backward-element)
 
-     (rh-programming-minor-modes 1)
-     ;; (rh-project-setup)
-     )))
+     (rh-programming-minor-modes 1))))
 
-;; /b/} nxml-mode
-
-;; /b/{ web-mode
+;;; web-mode
+;;; /b/{
 
 (defun vr-web-hs-html ()
   ;; hs-forward-sexp-func is equal to web-mode-forward-sexp by default
@@ -4079,11 +3885,6 @@ fields which we need."
         (local-unset-key (kbd "M-<f5>"))
         (local-unset-key (kbd "S-<f5>"))
         (local-unset-key (kbd "<f6>"))))))
-
-;; (defun vr-web-hs-default-toggle-hiding ()
-;;   (interactive)
-;;   (vr-web-hs-default)
-;;   (hs-toggle-hiding))
 
 (defun vr-web-hs-toggle-hiding ()
   (interactive)
@@ -4172,14 +3973,11 @@ fields which we need."
   (add-hook
    'web-mode-hook
    (lambda ()
-     (setq-local company-backends
-                 '((company-keywords company-dabbrev-code)
-                   company-files (company-dabbrev company-ispell)))
+     (setq-local company-backends (copy-tree company-backends))
      (company-mode 1)
 
      (rh-programming-minor-modes 1)
      (setq-local electric-indent-inhibit t)
-     ;; (rh-project-setup)
 
      (local-set-key (kbd "C-S-j") #'vr-web-hs-toggle-hiding)
      (local-set-key (kbd "C-x C-S-j") #'vr-web-hs-html-toggle-hiding)
@@ -4191,9 +3989,7 @@ fields which we need."
 
   :ensure t)
 
-;; /b/} web-mode
-
-;; /b/{ graphql-mode
+;;; /b/}
 
 (use-package graphql-mode
   :config
@@ -4210,16 +4006,8 @@ fields which we need."
 
   :ensure t)
 
-;; /b/} graphql-mode
-
-;; /b/{ json-mode
-
 (use-package json-mode
   :ensure)
-
-;; /b/{ json-mode
-
-;; /b/{ tide
 
 (use-package tide
   :delight (tide-mode " τ")
@@ -4295,9 +4083,8 @@ fields which we need."
   :defer t
   :ensure t)
 
-;; /b/} tide
-
-;; /b/{ JavaScript Environments Setup
+;;; JavaScript Environments Setup
+;;; /b/{
 
 (defun rh-setup-typescript-tide ()
   (interactive)
@@ -4337,16 +4124,13 @@ fields which we need."
   (setq company-backends (delq 'company-tern company-backends))
   (local-set-key (kbd "C-c C-<tab>") #'company-tern))
 
-;; /b/} JavaScript Environments Setup
+;;; /b/}
 
-;;; Programming Languages (Compilers, Debuggers, Profilers etc.)
-;; ++++++++++ /b/} ---------------------------------------------------
+;; /b/}
 
 ;; -------------------------------------------------------------------
 ;;; Structured Text and Markup (Meta) Languages
 ;; -------------------------------------------------------------------
-
-;; /b/{ markdown-mode
 
 (use-package markdown-mode
   :mode (("README\\.md\\'" . gfm-mode)
@@ -4355,8 +4139,6 @@ fields which we need."
   :commands (markdown-mode gfm-mode)
   :init (setq markdown-command "multimarkdown")
   :ensure t)
-
-;; /b/} markdown-mode
 
 ;; == Org mode ==
 
