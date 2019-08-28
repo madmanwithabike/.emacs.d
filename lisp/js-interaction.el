@@ -5,6 +5,11 @@
 ;; Author: Victor Rybynok
 ;; Copyright (C) 2019, Victor Rybynok, all rights reserved.
 
+;; ------------------------------------------------------------------
+;;; Bugs, TODO and R&D
+;; ------------------------------------------------------------------
+;; /b/{
+
 ;; TODO:
 ;;  [ ] When node output has no errors, colour it with TypeScript mode.
 ;;  [ ] Add syntax highlight expression results displayed in minibuffer.
@@ -27,6 +32,8 @@
 ;;      nest beyond certain threshold?
 ;;  [?] Should jsi-log use Emacs' compilation mode to format Node.JS output in
 ;;      case of errors?
+
+;; /b/}
 
 ;; -------------------------------------------------------------------
 ;;; js-interaction common

@@ -1,60 +1,10 @@
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(LaTeX-indent-level 0)
- '(LaTeX-item-indent 2)
- '(custom-safe-themes
-   '("c74e83f8aa4c78a121b52146eadb792c9facc5b1f02c917e3dbb454fca931223" "a27c00821ccfd5a78b01e4f35dc056706dd9ede09a8b90c6955ae6a390eb1c1e" default))
- '(font-latex-fontify-script nil)
- '(font-latex-fontify-sectioning 'color)
- '(font-latex-math-environments
-   '("display" "displaymath" "equation" "eqnarray" "gather" "multline" "align" "alignat" "xalignat" "empheq"))
- '(hfy-default-face-def
-   '((t :background "black" :foreground "white" :family "misc-fixed")))
- '(httpd-host "10.0.100.180" t)
- '(indent-tabs-mode nil)
- '(longlines-show-hard-newlines t)
- '(make-backup-files nil)
- '(package-selected-packages
-   '(eval-sexp-fu scss-mode lispy dumb-jump ivy-rich bazel-mode rainbow-mode company-quickhelp company-tern tern nodejs-repl counsel git-timemachine markdown-mode amx color-theme-sanityinc-tomorrow json-mode flycheck-popup-tip fill-column-indicator fci-mode findr ivy-hydra counsel-ag wgrep iedit realgud js2-refactor test-simple list-utils bm com-css-sort graphql-mode total-lines use-package-ensure-system-package unicode-fonts elisp-slime-nav delight diminish ace-window avy pcre2el flycheck-pos-tip smart-mode-line iflipb yasnippet-snippets typescript-mode flycheck company tide htmlize clang-format modern-cpp-font-lock which-key undo-tree google-c-style picture-mode nlinum-hl magit hlinum highlight-indent-guides nlinum ac-html web-mode async visual-regexp popwin sr-speedbar gdb-mix web-beautify ac-js2 skewer-mode moz js2-mode pos-tip fuzzy auto-complete paradox flx-ido use-package))
- '(pop-up-windows nil)
- '(preview-scale-function 1.8)
- '(safe-local-variable-values
-   '((eval rh-project-setup)
-     (eval progn
-           (linum-mode -1)
-           (nlinum-mode 1))))
- '(tab-stop-list
-   '(8 4 16 20 24 28 32 36 40 44 48 52 56 60 64 68 72 76 80 84 88 92 96 100 104 108 112 116 120))
- '(visual-line-fringe-indicators '(nil right-curly-arrow))
- '(w32shell-cygwin-bin "c:\\tools\\cygwin\\bin")
- '(w32shell-msys-bin "c:\\tools\\mingw\\msys\\1.0\\bin"))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(ac-completion-face ((t (:background "light sky blue" :foreground "systemmenutext" :underline t))))
- '(ac-selection-face ((t (:background "light sky blue" :foreground "systemmenutext"))))
- '(completion-dynamic-common-substring-face ((((class color) (background light)) (:background "light steel blue" :foreground "systemmenutext"))))
- '(completion-dynamic-prefix-alterations-face ((((class color) (background light)) (:background "cyan" :foreground "systemmenutext"))))
- '(completion-highlight-face ((((class color) (background light)) (:background "light sky blue" :underline t))))
- '(flycheck-warning ((t (:underline (:color "deep sky blue" :style wave)))))
- '(iedit-occurrence ((((background light)) (:background "lightblue"))))
- '(iedit-read-only-occurrence ((((background light)) (:background "pale turquoise"))))
- '(rtags-errline ((((class color)) (:background "#ef8990"))))
- '(rtags-fixitline ((((class color)) (:background "#ecc5a8"))))
- '(rtags-skippedline ((((class color)) (:background "#c2fada"))))
- '(rtags-warnline ((((class color)) (:background "#efdd6f"))))
- '(speck-mode-line-specked ((((class color)) (:foreground "midnight blue"))))
- '(speck-mode-line-specking ((((class color)) (:foreground "maroon"))))
- '(whitespace-space ((t (:foreground "lightgray"))))
- '(whitespace-tab ((t (:foreground "lightgray")))))
+;;; init.el --- ramblehead's emacs configuration
+;;
+;; Author: Victor Rybynok
+;; Copyright (C) 2019, Victor Rybynok, all rights reserved.
 
 ;; ------------------------------------------------------------------
-;;; Bugs, TODO and R&D work packages
+;;; Bugs, TODO and R&D
 ;; ------------------------------------------------------------------
 ;; /b/{
 
@@ -72,12 +22,14 @@
 ;; [ ] Refactor web-mode config to rh-style.
 ;; [ ] Refactor auto-complete config to rh-style.
 ;; [ ] Remove rh-scratch-js mode after js-interaction scratches are implemented.
-;; [ ] Convert abc functions to abc mode.
 ;; [ ] Convert rh-project functions to rh-project mode.
+;; [ ] Convert code-groups functions to code-groups mode.
 
 ;; R&D:
 ;; [?] Bring Emacs init back to terminal-friendly state. Possibly, switch to
 ;;     text terminal as the default...
+;; [?] Investigate how to fix beacon and hide-show overlays to overlap
+;;     without shifting one-another.
 
 ;; /b/}
 
@@ -92,6 +44,10 @@
 
 ;; https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
 ;; https://github.com/bmag/emacs-purpose
+;; https://github.com/raxod502/straight.el
+
+;; * Steal backups and auto-saving strategy from the following config:
+;;   https://sriramkswamy.github.io/dotemacs/#orgheadline451
 
 ;; see https://www.quicklisp.org/beta/ for lisp libraries
 ;; Can then do magic like this:
@@ -101,17 +57,28 @@
 ;; /b/}
 
 ;; ------------------------------------------------------------------
+;;; Emacs custom file
+;; ------------------------------------------------------------------
+;; /b/{
+
+(setq custom-file (expand-file-name "custom.el" user-emacs-directory))
+(when (file-exists-p custom-file)
+  (load custom-file))
+
+;; /b/}
+
+;; ------------------------------------------------------------------
 ;;; Emacs Version Variables
 ;; ------------------------------------------------------------------
 ;; /b/{
 
-(setq vr-emacs-version-string
+(setq rh-emacs-version-string
       (replace-regexp-in-string
        "GNU Emacs \\([0-9]+.[0-9]+.[0-9]+\\).*" "\\1"
        (replace-regexp-in-string "\n" "" (emacs-version))))
 
-(setq vr-emacs-version
-      (mapcar 'string-to-number (split-string vr-emacs-version-string "\\.")))
+(setq rh-emacs-version
+      (mapcar 'string-to-number (split-string rh-emacs-version-string "\\.")))
 
 ;; /b/}
 
@@ -158,7 +125,7 @@
     ;; Paths for the site-start.el files, located in /usr/local/share/emacs/
     (let ((file-path "/usr/local/share/emacs/site-lisp/site-start.el")
           (ver-file-path (concat "/usr/local/share/emacs/"
-                                 vr-emacs-version-string
+                                 rh-emacs-version-string
                                  "/site-lisp/site-start.el")))
       (progn
        (when (file-exists-p file-path)
@@ -179,6 +146,9 @@
 ;; /b/{
 
 (require 'cl-lib)
+
+(load "~/.emacs-private.d/secret.el" t)
+(load (concat "~/.emacs-private.d/systems/" system-name ".el") t)
 
 ;; /b/{ Package initialisation and `use-package' bootstrap
 
@@ -213,14 +183,17 @@
 
 (use-package paradox
   :config
+  (customize-set-variable 'paradox-github-token
+                          (if (boundp 'rh-paradox-github-token)
+                              rh-paradox-github-token
+                            t))
+
   (setq paradox-automatically-star nil)
   (paradox-enable)
 
-  (when (boundp 'rh-paradox-github-token)
-    (setq paradox-github-token rh-paradox-github-token))
-
-  (define-key paradox-menu-mode-map (kbd "q") #'rh-quit-window-kill)
-
+  :bind (:map paradox-menu-mode-map
+         ("q" . rh-quit-window-kill))
+  :demand t
   :ensure t)
 
 (use-package async
@@ -323,7 +296,8 @@ when only symbol face names are needed."
   (interactive "d")
   (let ((face (or (get-char-property (point) 'read-face-name)
                   (get-char-property (point) 'face))))
-    (if face (message "Face: %s" face) (message "No face at %d" pos))))
+    (if face (message "Face: %s" face) (message "No face at %d" pos)))
+  (beacon-blink))
 
 (global-set-key (kbd "<f12>") 'what-face)
 
@@ -376,12 +350,16 @@ when only symbol face names are needed."
             (init-file-path (concat rh-project-path "init.el"))
             (rh-project-id (directory-file-name
                             (expand-file-name rh-project-path))))
-        (when (and (file-exists-p init-file-path)
-                   (not (member rh-project-id rh-project-initialised-projects)))
-          (add-to-list 'rh-project-initialised-projects rh-project-id)
-          (load init-file-path))
-        (when (file-exists-p setup-file-path)
-          (load setup-file-path))))))
+        (if (not (member rh-project-id rh-project-trusted-ids))
+            (message (concat "rh-project: '" rh-project-id
+                             "' is not trusted. "
+                             "Ignoring its 'init.el' and 'setup.el' files."))
+          (when (and (file-exists-p init-file-path)
+                     (not (member rh-project-id rh-project-initialised-projects)))
+            (add-to-list 'rh-project-initialised-projects rh-project-id)
+            (load init-file-path))
+          (when (file-exists-p setup-file-path)
+            (load setup-file-path)))))))
 
 (defun rh-project-get-generators-path ()
   (let ((generators-path (concat
@@ -629,17 +607,13 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
                       ".*[\r\n]?$"))
          (open-regex (concat "^.*" open-token desc-regex))
          (close-regex (concat "^.*" close-token desc-regex))
-         (data)
-         (template))
+         data template)
     (when (string-match close-regex current-line)
       (cg-search-backward-group-balanced-head)
       (setq current-line (thing-at-point 'line t)))
     (when (string-match open-regex current-line)
       (setq data (replace-regexp-in-string open-regex "\\1" current-line))
-      (setq template
-            (concat
-             (replace-regexp-in-string open-regex "\\2" current-line)
-             ".mako"))
+      (setq template (replace-regexp-in-string open-regex "\\2" current-line))
       (let ((start) (end))
         (move-beginning-of-line 2)
         (setq start (point))
@@ -1013,9 +987,6 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
    (lambda ()
      (recenter)))
 
-  (load (concat "~/.emacs-private.d/systems/" system-name ".el") t)
-  (load "~/.emacs-private.d/secret.el" t)
-
   ;; (color-theme-sanityinc-tomorrow-blue)
   ;; (load-theme 'sanityinc-tomorrow-blue t)
 
@@ -1205,6 +1176,40 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
 (use-package total-lines
   :config (global-total-lines-mode 1)
   ;; :demand t
+  :ensure t)
+
+(use-package beacon
+  :config
+  (setq beacon-lighter
+    (cond
+     ((char-displayable-p ?Λ) " Λ")
+     (t " (*)")))
+
+  (add-to-list 'rm-blacklist " (*)")
+  (add-to-list 'rm-blacklist " Λ")
+
+  (beacon-mode 1)
+
+  (setq beacon-dont-blink-commands
+        '(pop-tag-mark
+          xref-pop-marker-stack
+          mouse-set-point
+          mouse-drag-region
+          compile-goto-error
+          compilation-display-error
+          ivy-done))
+
+  (add-to-list 'beacon-dont-blink-major-modes 'dired-mode t)
+  (add-to-list 'beacon-dont-blink-major-modes 'paradox-menu-mode t)
+
+  (setq beacon-blink-delay 0.2)
+  ;; (setq beacon-color "gtk_selection_bg_color")
+  (setq beacon-color 0.3)
+  (setq beacon-blink-when-window-scrolls nil)
+  ;; (setq beacon-blink-when-focused t)
+  ;; (setq beacon-push-mark 1)
+
+  :after rich-minority
   :ensure t)
 
 (use-package rich-minority
@@ -1579,8 +1584,6 @@ Also sets SYMBOL to VALUE."
 ;;; Text Editor
 ;; -------------------------------------------------------------------
 
-;; == Basic Functionality ==
-
 (setq undo-limit (* 1024 1024))
 (setq undo-strong-limit (* undo-limit 2))
 (setq undo-outer-limit (* undo-limit 100))
@@ -1606,7 +1609,6 @@ Also sets SYMBOL to VALUE."
 (setq-default fill-column 80)
 
 (setq visible-bell t)
-;; see http://emacs.stackexchange.com/questions/10307/how-to-center-the-current-line-vertically-during-isearch
 
 (use-package color-theme-sanityinc-tomorrow
   :ensure t)
@@ -1647,8 +1649,6 @@ Also sets SYMBOL to VALUE."
   (add-hook 'post-self-insert-hook
             #'rh-electric-indent-post-self-insert-function))
 
-;; == smooth scrolling ==
-
 ;; Override text selection on typing
 ;; (i.e. non-persistent selection)
 (delete-selection-mode t)
@@ -1662,8 +1662,6 @@ Also sets SYMBOL to VALUE."
 (defun yank-pop-forwards (arg)
   (interactive "p")
   (yank-pop (- arg)))
-
-;; == smooth scrolling ==
 
 ;; (setq-default scroll-up-aggressively 0.01)
 ;; (setq-default scroll-down-aggressively 0.01)
@@ -1867,6 +1865,13 @@ Also sets SYMBOL to VALUE."
 ;; -------------------------------------------------------------------
 
 ;; /b/{ dired
+
+(use-package dired
+  :config
+  (add-hook
+   'dired-mode-hook
+   (lambda ()
+     (setq-local find-file-visit-truename nil))))
 
 (put 'dired-find-alternate-file 'disabled nil)
 
@@ -2184,13 +2189,30 @@ fields which we need."
            (current-prefix-arg t))
       (counsel-ag default-text nil extra-ag-args)))
 
+  (defun rh-counsel-git-deduce (&optional initial-input)
+    (interactive)
+    (let* ((extra-ag-args (if current-prefix-arg nil ""))
+           (default-text (or initial-input (rh-deduce-default-text t)))
+           (current-prefix-arg t))
+      (counsel-git default-text)))
+
+  (defun rh-counsel-file-jump ()
+    (interactive)
+    (let* ((current-prefix-arg t))
+      (call-interactively #'counsel-file-jump)))
+
   (defun rh-counsel-ag ()
     (interactive)
     (rh-counsel-ag-deduce ""))
 
-  :bind (("C-c s" . rh-counsel-ag)
+  :bind (:map counsel-mode-map
+         ("C-c s" . rh-counsel-ag)
          ("C-c S" . rh-counsel-ag-deduce)
-         :map counsel-mode-map
+         ;; TODO: This key-bind should try rh-rpoject first
+         ;;       then git then offer dir selector.
+         ("C-c f" . counsel-git)
+         ("C-c F" . rh-counsel-git-deduce)
+         ("C-c C-f" . rh-counsel-file-jump)
          ("M-y" . rh-counsel-yank-pop))
 
   :demand t
@@ -2258,6 +2280,8 @@ fields which we need."
 
 (use-package visual-regexp
   :config
+  ;; see https://stackoverflow.com/questions/15895313/let-emacs-move-the-cursor-off-screen
+
   (setq vr/match-separator-use-custom-face t)
   ;; (custom-set-variables '(vr/match-separator-string " -> "))
 
@@ -2766,8 +2790,11 @@ fields which we need."
                  (inhibit-same-window . t)
                  (window-height . 15)))
 
-  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compile-goto-error)
-  (add-to-list 'g2w-display-buffer-reuse-window-commands 'compilation-display-error)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'compile-goto-error)
+
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'compilation-display-error)
 
   (cl-defun rh-compile-toggle-display
       (&optional (compilation-buffer-name "*compilation*"))
@@ -3039,6 +3066,9 @@ fields which we need."
 
   (setq magit-bury-buffer-function #'quit-window)
 
+  (add-hook 'magit-process-find-password-functions
+            'magit-process-password-auth-source)
+
   ;; See https://github.com/magit/magit/issues/2541
   ;; (setq magit-display-buffer-function
   ;;       (lambda (buffer)
@@ -3052,6 +3082,29 @@ fields which we need."
   ;;                                  magit-status-mode)))
   ;;                     nil
   ;;                   '(display-buffer-same-window)))))
+  :ensure t)
+
+(use-package ghub
+  :ensure t)
+
+(use-package forge
+  :config
+  ;; TODO: Remove the following function after https with user name issue is
+  ;;       resolved.
+  ;; see https://github.com/magit/forge/issues/169
+  (defun rh-forge--url-regexp ()
+    (concat "\\`\\(?:git://\\|[^/@]+@\\|ssh://\\(?:[^/@]+@\\)?"
+            "\\|https?://\\(?:[^/@]+@\\)?\\)"
+            (regexp-opt (mapcar #'car forge-alist) t)
+            "[:/]\\(.+?\\)"
+            "\\(?:\\.git\\|/\\)?\\'"))
+
+  (advice-add 'forge--url-regexp :override #'rh-forge--url-regexp)
+
+  :after ghub
+  :ensure t)
+
+(use-package github-review
   :ensure t)
 
 (use-package git-timemachine
