@@ -167,13 +167,21 @@ continuing (not first) item"
     (cond
      ;; We are making a reasonable assumption that if there is a control
      ;; structure to indent past, it has to be at the beginning of the line.
-     ((looking-at "\\(\\(if\\|for\\|while\\)\\s *(\\)")
-      (goto-char (match-end 1)))
+     ;; ((looking-at "\\(\\(if\\|for\\|while\\)\\s *(\\)")
+     ;;  (goto-char (match-beginning 1)))
      ;; For constructor initializer lists, the reference point for line-up is
      ;; the token after the initial colon.
      ((looking-at ":\\s *")
       (goto-char (match-end 0))))
     (vector (+ tab-width (current-column)))))
+
+(defun rh-c++-lineup-expression (langelem)
+  (save-excursion
+    (goto-char (c-langelem-pos langelem))
+    ;; (cond
+    ;;  ((looking-at ":\\s *")
+    ;;   (goto-char (match-end 0))))
+    (vector (current-column))))
 
 ;;;###autoload
 (defun rh-c-style-setup ()
@@ -186,9 +194,19 @@ continuing (not first) item"
   (c-set-offset 'func-decl-cont '+)
   (c-set-offset 'inher-intro '++)
   (c-set-offset 'member-init-intro '++)
+  (c-set-offset 'arglist-close #'rh-c++-lineup-expression)
 
   (c-set-offset
    'arglist-cont
+   (lambda (langelem)
+     (cond
+      ((rh-c-style-examine
+        langelem
+        #'rh-c++-looking-at-multiline_arg)
+       '+))))
+
+  (c-set-offset
+   'brace-list-entry
    (lambda (langelem)
      (cond
       ((rh-c-style-examine

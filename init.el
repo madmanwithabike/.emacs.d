@@ -30,6 +30,9 @@
 ;;     text terminal as the default...
 ;; [?] Investigate how to fix beacon and hide-show overlays to overlap
 ;;     without shifting one-another.
+;; [?] Try using tabs for side windows:
+;;     https://github.com/manateelazycat/awesome-tab
+;; [?] Use instead of/with which-key?: https://gitlab.com/jjzmajic/hercules.el
 
 ;; /b/}
 
@@ -42,6 +45,7 @@
 ;;   https://github.com/ema2159/centaur-tabs
 ;;   https://github.com/manateelazycat/awesome-tab
 
+;; * Static elisp analyser: https://github.com/emacs-elsa/Elsa
 ;; https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
 ;; https://github.com/bmag/emacs-purpose
 ;; https://github.com/raxod502/straight.el
@@ -314,8 +318,9 @@ when only symbol face names are needed."
 ;; /b/{ rh-project
 
 (defvar rh-project-initialised-projects '())
+(defvar rh-project-trusted-dir-marker ".rh-trusted")
 (defvar rh-project-dir-name ".project")
-(defvar rh-project-generators-relative-path "../gen/")
+(defvar rh-project-generators-relative-path "../auto-code/")
 (defvar rh-project-include-path-suffix "-include-path")
 
 (defun rh-project-get-path ()
@@ -326,6 +331,12 @@ when only symbol face names are needed."
                              rh-project-dir-name))))
     (when src-tree-root
       (file-name-as-directory (concat src-tree-root rh-project-dir-name)))))
+
+(defun rh-project-in-trusted-dir ()
+  (and buffer-file-name
+       (locate-dominating-file
+        (file-name-directory buffer-file-name)
+        rh-project-trusted-dir-marker)))
 
 (defun rh-project-get-root ()
   (let ((rh-project (rh-project-get-path)))
@@ -350,7 +361,8 @@ when only symbol face names are needed."
             (init-file-path (concat rh-project-path "init.el"))
             (rh-project-id (directory-file-name
                             (expand-file-name rh-project-path))))
-        (if (not (member rh-project-id rh-project-trusted-ids))
+        (if (and (not (member rh-project-id rh-project-trusted-ids))
+                 (not (rh-project-in-trusted-dir)))
             (message (concat "rh-project: '" rh-project-id
                              "' is not trusted. "
                              "Ignoring its 'init.el' and 'setup.el' files."))
@@ -588,42 +600,54 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
             (cg-hs-hide-group)))
       (hs-toggle-hiding))))
 
-(defun cg-generate-auto-code (data template)
-  (let* ((generators-path (rh-project-get-generators-path))
-         (code-gen (concat generators-path "auto-code")))
-    (when (and generators-path
-               (file-exists-p code-gen))
-      (setq code-gen (concat code-gen " " data " " template))
-      (insert (shell-command-to-string code-gen)))))
+(defun cg-generate-auto-code (generator data template indent-str)
+  (let ((generators-path (rh-project-get-generators-path))
+        (auto-code-command generator))
+    (when generators-path
+      (setq auto-code-command (concat generators-path auto-code-command)))
+    (when (file-exists-p auto-code-command)
+      (setq auto-code-command (concat auto-code-command " " data " " template))
+      (when indent-str
+        (setq auto-code-command (concat auto-code-command " '" indent-str "'")))
+      (insert (shell-command-to-string auto-code-command)))))
 
 (defun cg-generate-auto-code-group ()
   (interactive)
   (let* ((current-line (thing-at-point 'line t))
          (open-token cg-auto-code-group-open-token)
          (close-token cg-auto-code-group-close-token)
-         (desc-regex (concat
-                      "[[:blank:]]*auto-code[[:blank:]]+"
-                      "\\([^[:blank:]]+\\)[[:blank:]]+\\([^[:blank:]\r\n]+\\)"
-                      ".*[\r\n]?$"))
-         (open-regex (concat "^.*" open-token desc-regex))
-         (close-regex (concat "^.*" close-token desc-regex))
-         data template)
-    (when (string-match close-regex current-line)
+         (regex-begin
+          "\\([[:blank:]]*\\)[^[:blank:]]+[[:blank:]]*")
+         (regex-end
+          (concat
+           "[[:blank:]]*\\([^[:blank:]\r\n]+\\)[[:blank:]]+"
+           "\\([^[:blank:]\r\n]+\\)[[:blank:]]+\\([^[:blank:]\r\n]+\\)"))
+         (open-regex (concat regex-begin open-token regex-end))
+         (close-regex (concat regex-begin close-token regex-end))
+         generator data template indent-str)
+    (when (string-match-p close-regex current-line)
       (cg-search-backward-group-balanced-head)
       (setq current-line (thing-at-point 'line t)))
-    (when (string-match open-regex current-line)
-      (setq data (replace-regexp-in-string open-regex "\\1" current-line))
-      (setq template (replace-regexp-in-string open-regex "\\2" current-line))
-      (let ((start) (end))
-        (move-beginning-of-line 2)
-        (setq start (point))
-        (previous-line)
-        (cg-search-forward-group-balanced-tail)
-        (move-beginning-of-line nil)
-        (setq end (point))
-        (goto-char start)
-        (delete-region start end))
-      (cg-generate-auto-code data template))))
+    (save-match-data
+      (when (string-match open-regex current-line)
+        (setq generator (match-string 2 current-line))
+        (setq data (match-string 3 current-line))
+        (setq template (match-string 4 current-line))
+        ;; The following condition should be removed
+        ;; once all templates are moved to automatic indentation
+        (when (string= (substring template -2) ".i")
+          (setq generator (concat generator ".i"))
+          (setq indent-str (match-string 1 current-line)))
+        (let ((start) (end))
+          (move-beginning-of-line 2)
+          (setq start (point))
+          (previous-line)
+          (cg-search-forward-group-balanced-tail)
+          (move-beginning-of-line nil)
+          (setq end (point))
+          (goto-char start)
+          (delete-region start end))
+        (cg-generate-auto-code generator data template indent-str)))))
 
 (defun cg-forward-list (arg)
   (interactive "^p")
@@ -1932,6 +1956,12 @@ filename associated with it."
 
 ;; /b/} dired
 
+;; /b/{ sunrise commander
+
+;; (use-package ivy)
+
+;; /b/} sunrise commander
+
 ;; /b/{ recentf
 
 (use-package recentf
@@ -3032,8 +3062,8 @@ fields which we need."
                  (display-buffer-same-window
                   rh-display-buffer-reuse-right
                   rh-display-buffer-reuse-left
-                  rh-display-buffer-reuse-down
-                  rh-display-buffer-reuse-up
+                  ;; rh-display-buffer-reuse-down
+                  ;; rh-display-buffer-reuse-up
                   display-buffer-pop-up-window)))
 
   (add-to-list 'display-buffer-alist
@@ -3043,8 +3073,8 @@ fields which we need."
                             'magit-status-mode)))
                  (rh-display-buffer-reuse-right
                   rh-display-buffer-reuse-left
-                  rh-display-buffer-reuse-down
-                  rh-display-buffer-reuse-up
+                  ;; rh-display-buffer-reuse-down
+                  ;; rh-display-buffer-reuse-up
                   display-buffer-pop-up-window)
                  (inhibit-same-window . t)))
 
@@ -3056,8 +3086,8 @@ fields which we need."
                  (display-buffer-reuse-mode-window
                   rh-display-buffer-reuse-right
                   rh-display-buffer-reuse-left
-                  rh-display-buffer-reuse-down
-                  rh-display-buffer-reuse-up
+                  ;; rh-display-buffer-reuse-down
+                  ;; rh-display-buffer-reuse-up
                   display-buffer-pop-up-window)
                  (inhibit-same-window . t)))
 
@@ -3088,18 +3118,23 @@ fields which we need."
   :ensure t)
 
 (use-package forge
+  :init
+  (customize-set-variable
+   'forge-bug-reference-hooks
+   '(git-commit-setup-hook magit-mode-hook))
+
   :config
   ;; TODO: Remove the following function after https with user name issue is
   ;;       resolved.
   ;; see https://github.com/magit/forge/issues/169
-  (defun rh-forge--url-regexp ()
-    (concat "\\`\\(?:git://\\|[^/@]+@\\|ssh://\\(?:[^/@]+@\\)?"
-            "\\|https?://\\(?:[^/@]+@\\)?\\)"
-            (regexp-opt (mapcar #'car forge-alist) t)
-            "[:/]\\(.+?\\)"
-            "\\(?:\\.git\\|/\\)?\\'"))
+  ;; (defun rh-forge--url-regexp ()
+  ;;   (concat "\\`\\(?:git://\\|[^/@]+@\\|ssh://\\(?:[^/@]+@\\)?"
+  ;;           "\\|https?://\\(?:[^/@]+@\\)?\\)"
+  ;;           (regexp-opt (mapcar #'car forge-alist) t)
+  ;;           "[:/]\\(.+?\\)"
+  ;;           "\\(?:\\.git\\|/\\)?\\'"))
 
-  (advice-add 'forge--url-regexp :override #'rh-forge--url-regexp)
+  ;; (advice-add 'forge--url-regexp :override #'rh-forge--url-regexp)
 
   :after ghub
   :ensure t)
@@ -3366,6 +3401,10 @@ fields which we need."
   :defer t
   :pin manual)
 
+(use-package company-c-headers
+  :defer t
+  :ensure t)
+
 ;; (use-package auto-complete-clang
 ;;   :defer t
 ;;   :ensure t)
@@ -3397,8 +3436,11 @@ fields which we need."
            (end-pos (string-match end-string command-result))
            (include-string (substring command-result
                                       (+ start-pos (length start-string))
-                                      end-pos)))
-      (split-string include-string)))
+                                      end-pos))
+           result)
+      (setq result (split-string include-string))
+      (add-to-list 'result "/usr/include" t)
+      (add-to-list 'result "/usr/local/include" t)))
 
   (defun rh-cc-compile-setup ()
     (let ((project-path (rh-project-get-path)))
@@ -3667,7 +3709,7 @@ fields which we need."
   ;; (concat "~/.emacs-private.d/systems/" system-name ".el")
   ;; so httpd will use that IP instead of localhost
   ;;
-  ;; e.g. (customize-set-variable 'httpd-host "10.0.100.180")
+  ;; e.g. (setq httpd-host "10.0.100.180")
 
   (httpd-start)
   :defer t
