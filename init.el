@@ -49,6 +49,9 @@
 ;; https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
 ;; https://github.com/bmag/emacs-purpose
 ;; https://github.com/raxod502/straight.el
+;; https://github.com/yuutayamada/suggestion-box-el
+;; https://github.com/syohex/emacs-quickrun
+;; https://github.com/zk-phi/indent-guide
 
 ;; * Steal backups and auto-saving strategy from the following config:
 ;;   https://sriramkswamy.github.io/dotemacs/#orgheadline451
