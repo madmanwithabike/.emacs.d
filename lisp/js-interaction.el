@@ -417,7 +417,7 @@ Returns full path of the found file or nil if none was found."
 (defun jsi-babel-config-file-get-default ()
   "Returns default jsi-ts.babel.config.js file path if current buffer major mode
 is `typescript-mode'. For all other major modes returns default
-jsi-ts.babel.config.js file path.
+jsi.babel.config.js file path.
 
 Default babel config files are searched by waling up the directory
 defined by `jsi-babel-run-directory'."

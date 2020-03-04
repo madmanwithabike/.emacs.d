@@ -88,15 +88,14 @@
 ;;      (rtags-update-current-container-cache))))
 
 (defun rh-rtags-header-line-find-file-handler ()
-  (set (make-local-variable 'header-line-format)
-       '(:eval (rh-rtags-header-line))))
+  (setq-local header-line-format '(:eval (rh-rtags-header-line))))
 
 ;;;###autoload
 (defun rh-rtags-header-line-setup ()
   ;; Display current function name at the top of the window (header-line).
   ;; https://github.com/Andersbakken/rtags/issues/435
-  (set (make-local-variable 'rtags-cached-current-container) "")
-  (set (make-local-variable 'rtags-track-container) t)
+  (setq-local rtags-cached-current-container "")
+  (setq-local rtags-track-container t)
   (add-hook 'find-file-hook #'rh-rtags-header-line-find-file-handler nil t))
 
 (provide 'rh-rtags-header-line)

@@ -1,20 +1,12 @@
 ;;; init.el --- ramblehead's emacs configuration
 ;;
 ;; Author: Victor Rybynok
-;; Copyright (C) 2019, Victor Rybynok, all rights reserved.
+;; Copyright (C) 2019, 2020, Victor Rybynok, all rights reserved.
 
 ;; ------------------------------------------------------------------
 ;;; Bugs, TODO and R&D
 ;; ------------------------------------------------------------------
 ;; /b/{
-
-;; Bugs:
-;; [ ] All compilation buffers should be marked as "bottom side window".
-;; [ ] All "bottom side window" buffers should iflipb-next-buffer().
-;; [ ] All "non-side window" buffers should be ingnored when
-;;     iflipb-next-buffer() in other windows.
-;; [ ] Bottom-side window should have tabs for all buffers marked as "bottom
-;;     side window".
 
 ;; TODO:
 ;; [ ] Switch to color-theme-sanityinc-tomorrow-blue.
@@ -41,17 +33,20 @@
 ;; ------------------------------------------------------------------
 ;; /b/{
 
-;; * Tabs to switch between compilation and other top/bottom side buffers
-;;   https://github.com/ema2159/centaur-tabs
-;;   https://github.com/manateelazycat/awesome-tab
+;; * REST clients
+;;   https://github.com/federicotdn/verb
+;;   https://github.com/pashky/restclient.el
+;;   https://emacs.stackexchange.com/questions/2427/how-to-test-rest-api-with-emacs
+
+;; https://github.com/10sr/git-walktree-el
 
 ;; * Static elisp analyser: https://github.com/emacs-elsa/Elsa
-;; https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
-;; https://github.com/bmag/emacs-purpose
-;; https://github.com/raxod502/straight.el
-;; https://github.com/yuutayamada/suggestion-box-el
-;; https://github.com/syohex/emacs-quickrun
-;; https://github.com/zk-phi/indent-guide
+;;   https://emacs.stackexchange.com/questions/12997/how-do-i-use-nadvice
+;;   https://github.com/bmag/emacs-purpose
+;;   https://github.com/raxod502/straight.el
+;;   https://github.com/yuutayamada/suggestion-box-el
+;;   https://github.com/syohex/emacs-quickrun
+;;   https://github.com/zk-phi/indent-guide
 
 ;; * Steal backups and auto-saving strategy from the following config:
 ;;   https://sriramkswamy.github.io/dotemacs/#orgheadline451
@@ -183,6 +178,10 @@
   (package-refresh-contents)
   (package-install 'use-package))
 
+(use-package gnu-elpa-keyring-update
+  :demand t
+  :ensure t)
+
 (use-package use-package-ensure-system-package
   :ensure t)
 
@@ -243,15 +242,23 @@
         (when (string-match regexp str)
           (throw 'done t))))))
 
-(cl-defun rh-toggle-display (buffer-name &optional (dedicated nil))
+(cl-defun rh-toggle-display (buffer-name
+                             &optional
+                             dedicated display-buffer-alist-override)
   (let* ((buffer (get-buffer buffer-name))
-         (buffer-window (get-buffer-window buffer-name)))
+         (buffer-window-list (get-buffer-window-list buffer-name))
+         (buffer-window (seq-find
+                         (lambda (win)
+                           (window-parameter win 'window-side))
+                         buffer-window-list)))
     (if buffer
         (if buffer-window
             (delete-window buffer-window)
-          (if dedicated
-              (set-window-dedicated-p (display-buffer buffer-name) t)
-            (display-buffer buffer-name)))
+          (let ((display-buffer-alist (or display-buffer-alist-override
+                                          display-buffer-alist)))
+            (if dedicated
+                (set-window-dedicated-p (display-buffer buffer-name) t)
+              (display-buffer buffer-name))))
       (message (concat "\"" buffer-name "\""
                        " buffer does not exist.")))))
 
@@ -324,7 +331,6 @@ when only symbol face names are needed."
 (defvar rh-project-trusted-dir-marker ".rh-trusted")
 (defvar rh-project-dir-name ".project")
 (defvar rh-project-generators-relative-path "../auto-code/")
-(defvar rh-project-include-path-suffix "-include-path")
 
 (defun rh-project-get-path ()
   (let ((src-tree-root (and buffer-file-name
@@ -383,20 +389,40 @@ when only symbol face names are needed."
     (when (file-directory-p generators-path)
       (expand-file-name generators-path))))
 
-;; TODO: remove this function and related code
-(defun rh-project-get-include-path (language)
+(defun rh-project-compile (command compilation-buffer-name)
   (let* ((project-path (rh-project-get-path))
-         (src-tree-root (concat project-path "../"))
-         (lang-include-path
-          (concat project-path language rh-project-include-path-suffix)))
-    (when (and project-path (file-exists-p lang-include-path))
-      (setq src-tree-root (expand-file-name src-tree-root))
-      (with-temp-buffer
-        (insert-file-contents lang-include-path)
-        (mapcar (lambda (item)
-                  (replace-regexp-in-string
-                   (regexp-quote "../") src-tree-root item nil 'literal))
-                (split-string (buffer-string)))))))
+         (full-command (concat project-path command))
+         (compilation-buffer-name-function
+          (lambda (name-of-mode) compilation-buffer-name)))
+    (setq rh-bs-bottom-0-side-window-buffer
+          (compile full-command))))
+
+(defun rh-project-restart-shell-command (command output-buffer-or-name)
+  (let* ((project-path (rh-project-get-path))
+         (output-buffer (get-buffer-create output-buffer-or-name))
+         (full-command (concat project-path command))
+         (proc (get-buffer-process output-buffer)))
+    (unless (get-buffer-window output-buffer 'visible)
+      (rh-bs-display-buffer-in-bootom-0-side-window output-buffer))
+    (when proc (delete-process proc))
+    (rh-bs-async-shell-command full-command output-buffer)
+    (with-current-buffer output-buffer
+      (setq-local buffer-read-only t)
+      (local-set-key (kbd "C-q") #'rh-bs-delete-sibling-windows)
+      (local-set-key (kbd "q") #'delete-window))
+    (setq rh-bs-bottom-0-side-window-buffer output-buffer)
+    (get-buffer-process output-buffer)))
+
+(defun rh-project-kill-shell-process
+    (output-buffer-or-name &optional interrupt)
+  (let ((buffer (get-buffer output-buffer-or-name))
+        (proc (get-buffer-process output-buffer-or-name)))
+    (when (and buffer (not (get-buffer-window buffer 'visible)))
+      (rh-bs-display-buffer-in-bootom-0-side-window buffer))
+    (when proc
+      (if interrupt
+          (interrupt-process proc)
+        (kill-process proc)))))
 
 ;; /b/} rh-project
 
@@ -416,11 +442,11 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
 (defvar cg-auto-code-group-open-token "/a/{")
 (defvar cg-auto-code-group-close-token "/a/}")
 
-(defvar cg-custom-code-group-open-token "/c/{")
-(defvar cg-custom-code-group-close-token "/c/}")
-
 (defvar cg-block-code-group-open-token "/b/{")
 (defvar cg-block-code-group-close-token "/b/}")
+
+(defvar cg-custom-code-group-open-token "/c/{")
+(defvar cg-custom-code-group-close-token "/c/}")
 
 (defun cg-group-head-regexp (open-token)
   (concat "^.*" open-token ".*$"))
@@ -704,7 +730,7 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
 
 (defvar g2w-reuse-visible-default t)
 
-;; (defvar g2w-next-display-buffer-ref nil)
+(defvar g2w-side-window-height 15)
 
 (defvar g2w-fallback-display-buffer-func
   ;; 'display-buffer-reuse-window)
@@ -772,103 +798,39 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
 
 (cl-defmacro g2w-display (display-buffer-func
                           &optional (kill-on-quit nil))
-  `#'(lambda (buf alist)
-       (let ((win (funcall ,display-buffer-func buf alist)))
-         (when win
-           (with-current-buffer buf
-             (set (make-local-variable 'g2w-window-side)
-                  (window-parameter win 'window-side))
-             (put 'g2w-window-side 'permanent-local t)
-             (set (make-local-variable 'g2w-window-slot)
-                  (window-parameter win 'window-slot))
-             (put 'g2w-window-slot 'permanent-local t)
-             ;; (set (make-local-variable 'g2w-quit-restore-parameter)
-             ;;      (window-parameter win 'quit-restore))
-             ;; (put 'g2w-quit-restore-parameter 'permanent-local t)
-             (set (make-local-variable 'g2w-kill-on-quit)
-                  ,kill-on-quit)
-             (put 'g2w-kill-on-quit 'permanent-local t)))
-         win)))
-
-(defun g2w-same-side-and-slot-buffers (buf)
-  (with-current-buffer buf
-    (let ((buf-side (if (local-variable-p 'g2w-window-side)
-                        g2w-window-side nil))
-          (buf-slot (if (local-variable-p 'g2w-window-slot)
-                        g2w-window-slot nil))
-          (same '()) (different '()))
-      (mapc (lambda (tbuf)
-              (with-current-buffer tbuf
-                (let ((tbuf-side (if (local-variable-p 'g2w-window-side)
-                                     g2w-window-side nil))
-                      (tbuf-slot (if (local-variable-p 'g2w-window-slot)
-                                     g2w-window-slot nil)))
-                  (if (and (eq tbuf-side buf-side)
-                           (eq tbuf-slot buf-slot))
-                      (push (buffer-name tbuf) same)
-                    (push (buffer-name tbuf) different)))))
-            (buffer-list))
-      `[,same ,different])))
-
-(defun g2w-quit-window ()
-  (interactive)
-  ;; (when (and (local-variable-p 'g2w-quit-restore-parameter)
-  ;;            g2w-quit-restore-parameter)
-  ;;   (set-window-parameter (frame-selected-window)
-  ;;                         'quit-restore g2w-quit-restore-parameter))
-
-  ;; If g2w-window-side, g2w-window-side and window-side, window-slot
-  ;; are equal, kill or burry buffer; then if last side/slot window,
-  ;; delete window, else display next same side/slot window.
-  ;; If g2w side/slot are not equal to selected window, just call
-  ;; (quit-window)
-
-  (if (and (and (local-variable-p 'g2w-window-side)
-                (local-variable-p 'g2w-window-slot))
-           (and (eq (window-parameter (frame-selected-window) 'window-side)
-                    g2w-window-side)
-                (eq (window-parameter (frame-selected-window) 'window-slot)
-                    g2w-window-slot)))
-      (let ((same-side-and-slot-buffers
-             (aref (g2w-same-side-and-slot-buffers (current-buffer)) 0)))
-        (if (eq (length same-side-and-slot-buffers) 1)
-            (if (and (local-variable-p 'g2w-kill-on-quit)
-                     g2w-kill-on-quit)
-                (let ((win (frame-selected-window)))
-                  (when (and (kill-buffer)
-                             (member win (window-list)))
-                    (delete-window)))
-              (delete-window))
-          (let ((buf (current-buffer)))
-            (setq same-side-and-slot-buffers
-                  (delete (buffer-name buf)
-                          same-side-and-slot-buffers))
-            (set-window-buffer (frame-selected-window)
-                               (car same-side-and-slot-buffers))
-            (with-current-buffer buf
-              (if (and (local-variable-p 'g2w-kill-on-quit)
-                       g2w-kill-on-quit)
-                  (kill-buffer)
-                (bury-buffer))))))
-    (if (local-variable-p 'g2w-kill-on-quit)
-        (quit-window g2w-kill-on-quit)
-      (quit-window nil))))
+  `(lambda (buf alist)
+     (let ((win (funcall ,display-buffer-func buf alist)))
+       (when win
+         (with-current-buffer buf
+           (set (make-local-variable 'g2w-window-side)
+                (window-parameter win 'window-side))
+           (put 'g2w-window-side 'permanent-local t)
+           (set (make-local-variable 'g2w-window-slot)
+                (window-parameter win 'window-slot))
+           (put 'g2w-window-slot 'permanent-local t)
+           ;; (set (make-local-variable 'g2w-quit-restore-parameter)
+           ;;      (window-parameter win 'quit-restore))
+           ;; (put 'g2w-quit-restore-parameter 'permanent-local t)
+           (set (make-local-variable 'g2w-kill-on-quit)
+                ,kill-on-quit)
+           (put 'g2w-kill-on-quit 'permanent-local t)))
+       win)))
 
 (cl-defmacro g2w-condition
-    (condition &optional (reuse-visible g2w-reuse-visible-default))
-  `#'(lambda (buffer-nm actions)
-       (when (if (stringp ,condition)
-                 (string-match-p ,condition buffer-nm)
-               (funcall ,condition buffer-nm actions))
-         (let ((current-window (frame-selected-window)))
-           (with-current-buffer buffer-nm
-             (set (make-local-variable 'g2w-destination-window)
-                  current-window)
-             (put 'g2w-destination-window 'permanent-local t)
-             (set (make-local-variable 'g2w-reuse-visible)
-                  ,reuse-visible)
-             (put 'g2w-reuse-visible 'permanent-local t))
-           t))))
+    (condition
+     &optional
+     (reuse-visible g2w-reuse-visible-default))
+  `(lambda (buffer-nm actions)
+     (when (if (stringp ,condition)
+               (string-match-p ,condition buffer-nm)
+             (funcall ,condition buffer-nm actions))
+       (let ((current-window (frame-selected-window)))
+         (with-current-buffer buffer-nm
+           (setq-local g2w-destination-window current-window)
+           (put 'g2w-destination-window 'permanent-local t)
+           (setq-local g2w-reuse-visible ,reuse-visible)
+           (put 'g2w-reuse-visible 'permanent-local t))
+         t))))
 
 (defun g2w-set-destination-window (choice)
   (interactive
@@ -1228,6 +1190,7 @@ code-groups minor mode - i.e. the function usually bound to C-M-p")
 
   (add-to-list 'beacon-dont-blink-major-modes 'dired-mode t)
   (add-to-list 'beacon-dont-blink-major-modes 'paradox-menu-mode t)
+  (add-to-list 'beacon-dont-blink-major-modes 'bs-mode t)
 
   (setq beacon-blink-delay 0.2)
   ;; (setq beacon-color "gtk_selection_bg_color")
@@ -1458,7 +1421,6 @@ Also sets SYMBOL to VALUE."
       display-buffer-pop-up-window)))
 
   (setq help-window-select t)
-  ;; (define-key help-mode-map (kbd "q") #'g2w-quit-window)
 
   :defer t)
 
@@ -1529,8 +1491,8 @@ Also sets SYMBOL to VALUE."
   ;; Need to investigate or wait until modern font lock is more reliable.
   (setq occur-excluded-properties t)
 
-  :bind (:map occur-mode-map
-         ("q" . g2w-quit-window))
+  ;; :bind (:map occur-mode-map
+  ;;        ("q" . quit-window))
   :defer t)
 
 (use-package findr
@@ -1561,8 +1523,8 @@ Also sets SYMBOL to VALUE."
   (add-to-list 'g2w-display-buffer-reuse-window-commands
                'xref-show-location-at-point)
 
-  :bind (:map xref--xref-buffer-mode-map
-         ("q" . g2w-quit-window))
+  ;; :bind (:map xref--xref-buffer-mode-map
+  ;;        ("q" . quit-window))
   :demand t)
 
 (use-package bind-key
@@ -2130,7 +2092,9 @@ fields which we need."
       display-buffer-pop-up-window)
      (inhibit-same-window . t)))
 
-  ;; (add-to-list 'g2w-display-buffer-reuse-window-commands 'ivy-occur-press-and-switch)
+  (add-to-list 'g2w-display-buffer-reuse-window-commands
+               'ivy-occur-press-and-switch)
+
   (add-to-list 'g2w-display-buffer-reuse-window-commands
                'compile-goto-error)
 
@@ -2151,6 +2115,14 @@ fields which we need."
   (setq ivy-count-format "%d/%d ")
   (setq ivy-height 8)
 
+  (setq ivy-ignore-buffers
+        '((lambda (buffer-nm)
+            (let ((buffer (get-buffer buffer-nm)))
+              (when buffer
+                (rh-buffers-match
+                 rh-buffers-not-file-group
+                 buffer))))))
+
   (setq ivy-mode-map
         (let ((map (make-sparse-keymap)))
           (define-key map [remap switch-to-buffer-other-window]
@@ -2164,9 +2136,9 @@ fields which we need."
          ("C-v" . nil)
          ("M-v" . nil)
          :map ivy-occur-grep-mode-map
-         ("RET" . compile-goto-error)
-         ("M-<return>" . compilation-display-error)
-         ("M-<kp-enter>" . compilation-display-error))
+         ("RET" . ivy-occur-press-and-switch)
+         ("M-<return>" . ivy-occur-press)
+         ("M-<kp-enter>" . ivy-occur-press))
 
   :demand t
   :ensure t)
@@ -2810,18 +2782,43 @@ fields which we need."
 
   :defer t)
 
+(cl-defun rh-compile-toggle-display
+    (&optional (compilation-buffer-name "*compilation*"))
+  (interactive)
+  (rh-toggle-display compilation-buffer-name))
+
 (use-package compile
   :config
   (setq compilation-scroll-output t)
 
   (setf (cdr (assq 'compilation-in-progress minor-mode-alist)) '(" ⵛ"))
 
-  (add-to-list 'display-buffer-alist
-               `(,(g2w-condition "*compilation*" nil)
-                 ,(g2w-display #'display-buffer-in-side-window)
-                 ;; (display-buffer-in-side-window)
-                 (inhibit-same-window . t)
-                 (window-height . 15)))
+  (require 'compile-eslint)
+  (push 'eslint compilation-error-regexp-alist)
+
+  ;; This occasionally hungs emacs for some reason...
+  ;; (require 'compile-nextjs)
+  ;; (push 'nextjs-typecheck compilation-error-regexp-alist)
+  ;; (push 'nextjs-compiling compilation-error-regexp-alist)
+
+  (require 'ansi-color)
+  (defun rh-ansi-colorize-buffer ()
+    (let ((buffer-read-only nil))
+      (ansi-color-apply-on-region compilation-filter-start (point))))
+
+  (add-hook 'compilation-filter-hook #'rh-ansi-colorize-buffer)
+
+  (add-to-list
+   'display-buffer-alist
+   `(,(g2w-condition
+       (lambda (buffer-nm action)
+         (eq (with-current-buffer buffer-nm major-mode)
+             'compilation-mode))
+       nil)
+     (display-buffer-reuse-window
+      display-buffer-in-side-window)
+     (inhibit-same-window . t)
+     (window-height . ,g2w-side-window-height)))
 
   (add-to-list 'g2w-display-buffer-reuse-window-commands
                'compile-goto-error)
@@ -2829,24 +2826,18 @@ fields which we need."
   (add-to-list 'g2w-display-buffer-reuse-window-commands
                'compilation-display-error)
 
-  (cl-defun rh-compile-toggle-display
-      (&optional (compilation-buffer-name "*compilation*"))
-    (interactive)
-    (rh-toggle-display compilation-buffer-name))
-
-  (defun rh-kill-buffer-and-delete-window ()
-    (interactive)
-    (kill-buffer (current-buffer))
-    (delete-window))
-
   :bind (:map compilation-mode-map
-         ("q" . delete-window)
-         ("M-q" . rh-kill-buffer-and-delete-window)
+         ("q" . rh-bs-bury-buffer-and-delete-window-if-bottom-0-side)
+         ("M-q" . rh-bs-kill-buffer-and-delete-window-if-bottom-0-side)
          ;; ("<return>" . compilation-display-error)
          ;; ("<kp-enter>" . compilation-display-error)
          ("M-<return>" . compilation-display-error)
          ("M-<kp-enter>" . compilation-display-error))
   :defer)
+
+(use-package compile-eslint
+  :defer t
+  :pin manual)
 
 (use-package eshell
   :config
@@ -2872,6 +2863,12 @@ fields which we need."
      (define-key eshell-mode-map (kbd "C-<kp-down>")
        #'eshell-next-matching-input-from-input)))
 
+  :ensure t)
+
+(use-package shell
+  :bind (:map shell-mode-map
+          ("C-c C-b" . nil))
+  :defer
   :ensure t)
 
 ;;; Line Numbers
@@ -3494,8 +3491,10 @@ fields which we need."
      (rh-cc-compile-setup)))
 
   :bind (:map c-mode-base-map
+         ("C-c C-b" . nil)
          ("C-S-b" . recompile)
-         ("C-c b" . rh-compile-toggle-display))
+         ;; ("C-c b" . rh-compile-toggle-display)
+         )
 
   :defer t)
 
@@ -3603,9 +3602,7 @@ fields which we need."
          (";" . nil)
          ("," . nil)
          ("\"" . nil)
-         ("'" . nil)
-         ("C-S-b" . recompile)
-         ("C-c b" . rh-compile-toggle-display))
+         ("'" . nil))
   :defer t
   :ensure t)
 
@@ -3736,7 +3733,7 @@ fields which we need."
      (display-buffer-reuse-window
       display-buffer-same-window)))
 
-  (setq jsi-node-command-require-esm t)
+  ;; (setq jsi-node-command-require-esm t)
   (setq jsi-babel-skip-import t)
 
   ;; Using company-capf until a proper company back-end is implemented
@@ -3906,7 +3903,11 @@ fields which we need."
      (setq cg-forward-list-original #'nxml-forward-element)
      (setq cg-backward-list-original #'nxml-backward-element)
 
-     (rh-programming-minor-modes 1))))
+     (rh-programming-minor-modes 1)))
+
+  :bind (:map nxml-mode-map
+         ("C-c C-b" . nil))
+  :defer t)
 
 ;;; web-mode
 ;;; /b/{
@@ -4082,9 +4083,12 @@ fields which we need."
      (local-set-key (kbd "C-M-n") #'forward-sexp)
      (local-set-key (kbd "C-M-p") #'backward-sexp)
 
-     (local-set-key (kbd "C-S-b") #'recompile)
-     (local-set-key (kbd "C-c b") #'rh-compile-toggle-display)))
+     ;; (local-set-key (kbd "C-S-b") #'recompile)
+     ;; (local-set-key (kbd "C-c b") #'rh-compile-toggle-display)
+     ))
 
+  :bind (:map web-mode-map
+         ("C-c C-b" . nil))
   :ensure t)
 
 ;;; /b/}
@@ -4206,7 +4210,8 @@ fields which we need."
   (flycheck-mode 1)
   (eldoc-mode 1)
   (tide-hl-identifier-mode 1)
-  (setq company-backends (delq 'company-tide company-backends))
+  ;; (setq company-backends (delq 'company-tide company-backends))
+  (add-to-list 'company-backends 'company-tide)
   (local-set-key (kbd "C-x C-<tab>") #'company-tide))
 
 (defun rh-setup-javascript-tern ()
@@ -4505,31 +4510,119 @@ with very limited support for special characters."
 ;;; General Emacs enhancement modes
 ;; -------------------------------------------------------------------
 
-(setq vr-ignore-buffers '("\\` "
-                          "^\\*Completions\\*$"
-                          "^\\*Quail Completions\\*$"
-                          "^\\*Messages\\*$"
-                          "^\\*clang-output\\*$"
-                          "^\\*clang error\\*$"
-                          "^\\*Semantic SymRef\\*$"
-                          "^\\*Recent Files\\*$"
-                          "^\\*Directory\\*$"
-                          "^\\*Ido Completions\\*$"
-                          "^\\*buffer-selection\\*$"
-                          "^\\*httpd\\*$"
-                          ;; tide
-                          "^\\*tide-server\\*.*$"
-                          "^\\*node process\\*$"
-                          ;; compile/script outputs
-                          "^\\*skewer-error\\*$"
-                          "^\\*tide-server\\*$"
-                          ;; rtags buffers
-                          "^\\*rdm\\*$"
-                          "^\\*RTags\\*$"
-                          "^\\*RTags Diagnostics\\*$"
-                          "^\\*RTags Log\\*$"
-                          ;; AUCTeX output files
-                          " output\\*$"))
+(defvar rh-buffers-groups nil
+  "Buffer groups used to create filters for bs-configurations.
+The group item values can be either buffer name regex
+or buffer major mode symbol")
+
+(defvar rh-buffers-not-file-group nil
+  "Not-file buffers used to create files filter in bs-configurations.
+The buffer value can be either buffer name regex or buffer major mode symbol")
+
+(defvar rh-buffers-semantic-not-file-groups nil
+  "Not-file buffer groups used to create filters for bs-configurations.
+The group item values can be either buffer name regex
+or buffer major mode symbol")
+
+(setq
+ rh-buffers-semantic-not-file-groups
+ '(("dired"
+    (dired-mode))
+   ("compilation"
+    (compilation-mode))
+   ("REPLs"
+    (jsi-log-mode
+     jsi-node-repl-mode))
+   ("shells"
+    (shell-mode))
+   ("magit"
+    (magit-diff-mode
+     magit-log-mode
+     magit-process-mode
+     magit-revision-mode
+     magit-status-mode
+     magit-submodule-list-mode))))
+
+(setq
+ rh-buffers-not-file-group
+ '("\\` "
+   "^\\*Completions\\*$"
+   "^\\*Quail Completions\\*$"
+   "^\\*Messages\\*$"
+   "^\\*clang-output\\*$"
+   "^\\*clang-error\\*$"
+   "^\\*Semantic SymRef\\*$"
+   "^\\*Recent Files\\*$"
+   "^\\*Directory\\*$"
+   "^\\*Ido Completions\\*$"
+   "^\\*buffer-selection\\*$"
+   "^\\*httpd\\*$"
+   help-mode
+   debugger-mode
+   ;; tide
+   "^\\*tide-server\\*.*$"
+   "^\\*node process\\*$"
+   ;; script outputs
+   "^\\*skewer-error\\*$"
+   "^\\*tide-server\\*$"
+   ;; rtags buffers
+   "^\\*rdm\\*$"
+   "^\\*RTags\\*$"
+   "^\\*RTags Diagnostics\\*$"
+   "^\\*RTags Log\\*$"
+   ;; AUCTeX output files
+   " output\\*$"))
+
+(setq rh-buffers-groups '())
+
+(dolist (buffer-group rh-buffers-semantic-not-file-groups)
+  (setq rh-buffers-groups
+        (append (list (copy-tree buffer-group)) rh-buffers-groups)))
+
+(setq rh-buffers-groups (nreverse rh-buffers-groups))
+
+(dolist (buffer-group rh-buffers-semantic-not-file-groups)
+  (setq rh-buffers-not-file-group
+        (append (car (cdr buffer-group))
+                rh-buffers-not-file-group)))
+
+;; (defun rh-buffers-match (regexp-or-mode-list buffer)
+;;   "Return non-nil if buffer either matches anything in listed regexps
+;; or has one of the listed major modes."
+;;   (let ((case-fold-search nil))
+;;     (catch 'done
+;;       (dolist (regexp-or-mode regexp-or-mode-list)
+;;         (if (stringp regexp-or-mode)
+;;             (let ((regexp regexp-or-mode)
+;;                   (name (buffer-name buffer)))
+;;               (when (string-match-p regexp name)
+;;                 (throw 'done t)))
+;;           (let ((mode regexp-or-mode))
+;;             (when (eq (with-current-buffer buffer major-mode) mode)
+;;               (throw 'done t))))))))
+
+(defun rh-buffers-match (regexp-or-mode-list buffer)
+  "Return non-nil if buffer either matches anything in listed regexps
+or has one of the listed major modes."
+  (let ((case-fold-search nil))
+    (seq-find
+     (lambda (regexp-or-mode)
+       (if (stringp regexp-or-mode)
+           (string-match-p regexp-or-mode (buffer-name buffer))
+         (eq (with-current-buffer buffer major-mode) regexp-or-mode)))
+     regexp-or-mode-list)))
+
+(defun rh-buffers-get-group-name (buffer)
+  "Return group name to which BUFFER belongs or nil if BUFFER has no group."
+  (catch 'found
+    (dolist (buffer-group rh-buffers-semantic-not-file-groups)
+      (when (rh-buffers-match (car (cdr buffer-group)) buffer)
+        (throw 'found (car buffer-group))))
+    (unless (rh-buffers-match rh-buffers-not-file-group buffer)
+      (throw 'found "files"))
+    (when (rh-buffers-match '("\\` ") buffer)
+      (throw 'found "sys"))
+    "none"))
 
 ;; Example:
 ;; Makefile.am, Makefile.am<3> etc.  to
@@ -4545,25 +4638,25 @@ with very limited support for special characters."
 
 (use-package iflipb
   :config
-  (defadvice iflipb-next-buffer
-      (around g2w-iflipb-next-buffer () activate)
-    (let ((iflipb-ignore-buffers
-           (append iflipb-ignore-buffers
-                   (aref (g2w-same-side-and-slot-buffers
-                          (current-buffer))
-                         1))))
-      ad-do-it))
+  (setq iflipb-ignore-buffers
+        '((lambda (buffer-nm)
+            (let ((buffer (get-buffer buffer-nm)))
+              (not (and (string=
+                         (rh-buffers-get-group-name (window-buffer))
+                         (rh-buffers-get-group-name buffer))
+                        (rh-context-show-buffer-p buffer))))
 
-  (defadvice iflipb-previous-buffer
-      (around g2w-iflipb-previous-buffer () activate)
-    (let ((iflipb-ignore-buffers
-           (append iflipb-ignore-buffers
-                   (aref (g2w-same-side-and-slot-buffers
-                          (current-buffer))
-                         1))))
-      ad-do-it))
+            ;; (let ((buffer (get-buffer buffer-nm)))
+            ;;   (and (not (rh-context-show-buffer-p buffer))
+            ;;        (not (string=
+            ;;              (rh-buffers-get-group-name (window-buffer))
+            ;;              (rh-buffers-get-group-name buffer)))))
 
-  (setq iflipb-ignore-buffers vr-ignore-buffers)
+            ;; (rh-buffers-match
+            ;;  rh-buffers-not-file-group
+            ;;  (get-buffer buffer-nm))
+            )))
+
   (setq iflipb-wrap-around t)
 
   (global-set-key (kbd "C-<next>") #'iflipb-next-buffer)
@@ -4576,20 +4669,53 @@ with very limited support for special characters."
 
 ;; /b/} ifilipb
 
-;; /b/{ bs
+;; /b/{ rh-bs
 
-(use-package bs
+(use-package rh-bs
   :config
-  ;; see http://scottfrazersblog.blogspot.co.uk/2010/01/emacs-filtered-buffer-switching.html
+  ;; (require 'rh-bs)
+
+  ;; (add-to-list
+  ;;  'display-buffer-alist
+  ;;  `(,(g2w-condition
+  ;;      (lambda (buffer-nm action)
+  ;;        (eq (with-current-buffer buffer-nm major-mode)
+  ;;            'bs-mode))
+  ;;      nil)
+  ;;    (display-buffer-reuse-window
+  ;;     rh-display-buffer-reuse-right
+  ;;     rh-display-buffer-reuse-left
+  ;;     ;; rh-display-buffer-reuse-down
+  ;;     ;; rh-display-buffer-reuse-up
+  ;;     ;; display-buffer-use-some-window
+  ;;     display-buffer-pop-up-window)
+  ;;    (inhibit-same-window . t)))
+
+  ;; (add-to-list 'g2w-display-buffer-reuse-window-commands
+  ;;              'bs-tmp-select-other-window)
+
   (setq
    bs-configurations
-   '(("all" nil nil nil nil nil)
+   '(("sys" nil nil nil
+      (lambda (buffer)
+        (not (rh-buffers-match '("\\` ") buffer)))
+      rh-bs-sort-by-file-path-interns-are-last)
+     ("all" nil nil nil
+      (lambda (buffer)
+        (or (not (rh-context-show-buffer-p buffer))
+            (rh-buffers-match '("\\` ") buffer)))
+      rh-bs-sort-by-file-path-interns-are-last)
      ("files" nil nil nil
-      (lambda (buf)
-        (rh-string-match-regexp-list
-         vr-ignore-buffers
-         (buffer-name buf)))
-      nil)))
+      (lambda (buffer)
+        (or (not (rh-context-show-buffer-p buffer))
+            (rh-buffers-match rh-buffers-not-file-group buffer)))
+      rh-bs-sort-by-file-path-interns-are-last)))
+
+  (dolist (buffer-group rh-buffers-groups)
+    (add-to-list
+     'bs-configurations
+     (rh-bs-make-configuration-from-buffer-group (car buffer-group))
+     t))
 
   (setq bs-cycle-configuration-name "files")
 
@@ -4606,80 +4732,23 @@ with very limited support for special characters."
      ;; Read-only buffers
      ("^[ .*]+\\(\\%\\)" 1 font-lock-variable-name-face)))
 
-  ;; see http://www.warmenhoven.org/src/emacs.el/ew-buffer.el.html
-  (defun vr-bs--get-size-string (&rest ignored)
-    (let* ((size (buffer-size))
-           (str (number-to-string size)))
-      (when (> (length str) 3)
-        (setq size (/ size 1024.0)
-              str (format "%.1fk" size)))
-      (when (> (length str) 6)
-        (setq size (/ size 1024.0)
-              str (format "%.1fM" size)))
-      (when (> (length str) 6)
-        (setq size (/ size 1024.0)
-              str (format "%.1fG" size)))
-      str))
-
-  (setq
-   bs-attributes-list
-   '(("" 2 2 left bs--get-marked-string)
-     ("M" 1 1 left bs--get-modified-string)
-     ("R" 2 2 left bs--get-readonly-string)
-     ("Size" 6 6 right vr-bs--get-size-string)
-     ("" 2 2 left "  ")
-     ("Mode" 16 16 left bs--get-mode-name)
-     ("" 2 2 left "  ")
-     ("Buffer" bs--get-name-length 100 left bs--get-name)
-     ("" 2 2 left "  ")
-     ("File" 1 255 left bs--get-file-name)))
-
-  (defun vr-bs-show (arg)
-    (interactive "P")
-    (let* ((up-window (selected-window))
-           (up-window-parent (window-parent up-window))
-           (down-height-orig -1)
-           (down-height-new -1)
-           (down-window (window-in-direction 'below))
-           (down-windows-preserved '())
-           (bs-show-result nil)
-           ;; (bs-window nil)
-           )
-      (when down-window
-        (setq down-height-orig (window-height down-window))
-        (select-window down-window)
-        (while (and (window-in-direction 'below)
-                    (eq up-window-parent
-                        (window-parent (window-in-direction 'below))))
-          (select-window (window-in-direction 'below))
-          (push (cons (selected-window) (window-preserved-size nil nil))
-                down-windows-preserved)
-          (window-preserve-size nil nil t))
-        (select-window up-window))
-      (setq bs-show-result (bs-show arg))
-      ;; (setq bs-window (selected-window))
-      (when down-window
-        (setq down-height-new (window-height down-window))
-        (if (> down-height-new down-height-orig)
-            (adjust-window-trailing-edge
-             up-window
-             (- down-height-new down-height-orig)))
-        (dolist (pair down-windows-preserved)
-          (window-preserve-size (car pair) nil (cdr pair))))
-      bs-show-result))
-
   (add-hook
    'bs-mode-hook
    (lambda ()
      (hl-line-mode 1)))
 
-  ;; (define-key bs-mode-map (kbd "<escape>") 'bs-kill)
-  (global-set-key (kbd "C-x C-b") 'vr-bs-show)
-
+  :bind (("C-x C-b" . rh-bs-show)
+         ("C-c C-b" . rh-bs-toggle-bs-in-bottom-0-side-window)
+         ("C-c b" . rh-bs-tmp-toggle-bottom-0-side-window)
+         ("<menu>" . rh-context-window-config-switch)
+         ("s-<menu>" . rh-context-window-config-save)
+         ("C-<menu>" . rh-context-window-config-restore)
+         ("S-<menu>" . rh-context-select)
+         ("C-S-<menu>" . rh-context-update-all-buffers-contexts))
   :demand t
-  :ensure t)
+  :pin manual)
 
-;; /b/} bs
+;; /b/} rh-bs
 
 ;; /b/{ bm
 
@@ -4747,7 +4816,7 @@ with very limited support for special characters."
 ;; /b/} bm
 
 ;; -------------------------------------------------------------------
-;;; Load unscoped (e.g. without vr-) useful functions
+;;; Load unscoped (e.g. without rh-) useful functions
 ;; -------------------------------------------------------------------
 
 (load-file (concat user-emacs-directory "useful-functions.el"))

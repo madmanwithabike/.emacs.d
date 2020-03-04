@@ -6,7 +6,7 @@
 ;; (setq ido-use-filename-at-point nil)
 ;; (setq ido-use-url-at-point nil)
 ;; (setq ido-save-directory-list-file vr-ido-last-file-path)
-;; (setq ido-ignore-buffers vr-ignore-buffers)
+;; (setq ido-ignore-buffers rh-ignore-buffers)
 
 ;; (ido-everywhere 1)
 
